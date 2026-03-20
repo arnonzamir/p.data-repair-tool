@@ -1,0 +1,47 @@
+server:
+  port: 8090
+
+spring:
+  application:
+    name: purchase-repair-tool
+
+# Snowflake connection (Okta SSO -- opens browser on first connect, then caches token)
+snowflake:
+  account: ${SNOWFLAKE_ACCOUNT:WXA20498.us-west-2.privatelink}
+  user: ${SNOWFLAKE_USER:arnon.zamir@sunbit.com}
+  warehouse: ${SNOWFLAKE_WAREHOUSE:DATA_ENG_WH}
+  role: ${SNOWFLAKE_ROLE:DBT_DEV_ROLE}
+  authenticator: externalbrowser
+
+# Admin API (purchase-service)
+admin-api:
+  base-url: ${ADMIN_API_BASE_URL:http://localhost:8080}
+  timeout-seconds: 30
+
+# MySQL targets for replication
+mysql:
+  local:
+    host: sunbit-mysql
+    port: 30306
+    user: root
+    password: root
+    database: purchase
+  staging:
+    credentials-path: ${HOME}/.sunbit/mysql-staging.json
+
+# Call center URLs (use {id} as placeholder for purchase ID)
+call-center:
+  prod: "https://call-center.prod.sunbit.com/?iss=https%3A%2F%2Fsunbit.okta.com#/purchases/show/{id}"
+  staging: "https://call-center.staging.sunbit.com/?iss=https%3A%2F%2Fsunbit.okta.com#/purchases/show/{id}"
+  local: "http://localhost:3020/#/purchases/show/{id}"
+
+# Replication defaults per target environment.
+# When customer-retailer-id and payment-profile-id are set, the replicator
+# reuses existing records instead of inserting new ones (skips customers_retailers,
+# customer_profiles, payment_profiles, card_payment_methods).
+replication:
+  id-offset: 100000000
+  local:
+    retailer-id: 14                # local test retailer
+  staging:
+    retailer-id: 14                # staging retailer (update if different)
