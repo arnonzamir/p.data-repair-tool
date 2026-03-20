@@ -31,7 +31,13 @@ data class PurchaseSnapshot(
     val chargeServiceStatuses: List<ChargeServiceAttemptStatus> = emptyList(),
     val loanTransactions: List<LoanTransaction> = emptyList(),
     val unifiedChargeEvents: List<UnifiedChargeEvent> = emptyList(),
-)
+    val disbursals: List<Disbursal> = emptyList(),
+    val disbursalDiffs: List<DisbursalDiff> = emptyList(),
+    val purchaseProperties: Map<String, String> = emptyMap(),
+) {
+    val isAutopayPaused: Boolean get() = purchaseStatus == 90
+    val isMultiDisbursal: Boolean get() = purchaseProperties["HAS_MULTI_DISBURSALS"] == "true" || disbursals.size > 1
+}
 
 // ---------------------------------------------------------------------------
 // Plan
@@ -361,4 +367,24 @@ data class UnifiedChargeEvent(
     val amount: BigDecimal,
     val timestamp: LocalDateTime?,
     val matchQuality: MatchQuality,
+)
+
+// ---------------------------------------------------------------------------
+// Disbursals (multi-disbursal loans)
+// ---------------------------------------------------------------------------
+
+data class Disbursal(
+    val id: Long,
+    val paymentPlanId: Long,
+    val disbursalDate: LocalDate?,
+    val amount: BigDecimal,
+    val creationTime: LocalDateTime?,
+)
+
+data class DisbursalDiff(
+    val id: Long,
+    val disbursalId: Long = 0,
+    val paymentActionId: Long?,
+    val amountDiff: BigDecimal,
+    val disbursalDate: String? = null,
 )

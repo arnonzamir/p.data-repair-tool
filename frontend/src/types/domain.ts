@@ -22,6 +22,11 @@ export interface PurchaseSnapshot {
   chargeServiceStatuses?: ChargeServiceAttemptStatus[];
   loanTransactions?: LoanTransaction[];
   unifiedChargeEvents?: UnifiedChargeEvent[];
+  disbursals?: Disbursal[];
+  disbursalDiffs?: DisbursalDiff[];
+  purchaseProperties?: Record<string, string>;
+  isAutopayPaused?: boolean;
+  isMultiDisbursal?: boolean;
 }
 
 export interface PlanInfo {
@@ -245,6 +250,22 @@ export interface LoanTransaction {
   interestAmount?: number;
   interestCharge?: number;
   principalBalance?: number;
+}
+
+export interface Disbursal {
+  id: number;
+  paymentPlanId: number;
+  disbursalDate?: string;
+  amount: number;
+  creationTime?: string;
+}
+
+export interface DisbursalDiff {
+  id: number;
+  disbursalId?: number;
+  paymentActionId?: number;
+  amountDiff: number;
+  disbursalDate?: string;
 }
 
 export type MatchQuality = 'EXACT' | 'AMOUNT_MATCH' | 'UNMATCHED';

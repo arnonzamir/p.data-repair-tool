@@ -269,6 +269,68 @@ class SnowflakeLoader(
         return transactions
     }
 
+    // -----------------------------------------------------------------------
+    // Disbursals
+    // -----------------------------------------------------------------------
+
+    fun loadDisbursals(purchaseId: Long): List<com.sunbit.repair.domain.Disbursal> {
+        log.info("[SnowflakeLoader][loadDisbursals] Loading disbursals for purchase {}", purchaseId)
+        val disbursals = jdbc.query("""
+            SELECT afd.ID, afd.PAYMENT_PLAN_ID, afd.DISBURSAL_DATE, afd.AMOUNT, afd.CREATION_TIME
+            FROM BRONZE.PURCHASE.AMOUNT_FINANCED_DISBURSALS afd
+            JOIN BRONZE.PURCHASE.PAYMENTPLANS pp ON afd.PAYMENT_PLAN_ID = pp.ID
+            JOIN BRONZE.PURCHASE.CHOSEN_PAYMENTPLANS cpp ON cpp.PAYMENT_PLAN_ID = pp.ID
+            WHERE pp.PURCHASE_ID = ?
+            ORDER BY afd.DISBURSAL_DATE
+        """.trimIndent(), { rs, _ ->
+            com.sunbit.repair.domain.Disbursal(
+                id = rs.long_("id"),
+                paymentPlanId = rs.long_("payment_plan_id"),
+                disbursalDate = rs.dt("disbursal_date")?.toLocalDate(),
+                amount = rs.bd("amount"),
+                creationTime = rs.ts("creation_time")?.toLocalDateTime(),
+            )
+        }, purchaseId)
+        log.info("[SnowflakeLoader][loadDisbursals] Loaded {} disbursals for purchase {}", disbursals.size, purchaseId)
+        return disbursals
+    }
+
+    fun loadDisbursalDiffs(purchaseId: Long): List<com.sunbit.repair.domain.DisbursalDiff> {
+        log.info("[SnowflakeLoader][loadDisbursalDiffs] Loading disbursal diffs for purchase {}", purchaseId)
+        return jdbc.query("""
+            SELECT afd.ID, afd.PAYMENT_PLAN_ID, afd.PAYMENT_ACTION_ID, afd.DISBURSAL_DATE, afd.AMOUNT_DIFF
+            FROM BRONZE.PURCHASE.AMOUNT_FINANCED_DISBURSALS_DIFF afd
+            JOIN BRONZE.PURCHASE.PAYMENTPLANS pp ON afd.PAYMENT_PLAN_ID = pp.ID
+            JOIN BRONZE.PURCHASE.CHOSEN_PAYMENTPLANS cpp ON cpp.PAYMENT_PLAN_ID = pp.ID
+            WHERE pp.PURCHASE_ID = ?
+            ORDER BY afd.DISBURSAL_DATE
+        """.trimIndent(), { rs, _ ->
+            com.sunbit.repair.domain.DisbursalDiff(
+                id = rs.long_("id"),
+                disbursalId = 0, // linked by date, not FK
+                paymentActionId = rs.getLongOrNull("payment_action_id"),
+                amountDiff = rs.bd("amount_diff"),
+                disbursalDate = rs.dt("disbursal_date")?.toLocalDate()?.toString(),
+            )
+        }, purchaseId)
+    }
+
+    fun loadPurchaseProperties(purchaseId: Long): Map<String, String> {
+        log.info("[SnowflakeLoader][loadPurchaseProperties] Loading properties for purchase {}", purchaseId)
+        val props = mutableMapOf<String, String>()
+        jdbc.query("""
+            SELECT pp.PROPERTY_NAME, pp.VALUE
+            FROM BRONZE.PURCHASE.PURCHASE_PROPERTIES pp
+            WHERE pp.PURCHASE_ID = ?
+        """.trimIndent(), { rs, _ ->
+            val name = rs.str("property_name") ?: ""
+            val value = rs.str("value") ?: ""
+            props[name] = value
+        }, purchaseId)
+        log.info("[SnowflakeLoader][loadPurchaseProperties] Loaded {} properties for purchase {}", props.size, purchaseId)
+        return props
+    }
+
     // =======================================================================
     // Row mappers
     // =======================================================================

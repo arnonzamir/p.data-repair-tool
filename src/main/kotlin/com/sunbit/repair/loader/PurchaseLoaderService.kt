@@ -36,6 +36,11 @@ class PurchaseLoaderService(
             snowflakeLoader.loadChargeServiceStatuses(chargeServiceAttempts.map { it.id })
         } else emptyList()
         val loanTransactions = snowflakeLoader.loadLoanTransactions(purchaseId)
+        val purchaseProperties = snowflakeLoader.loadPurchaseProperties(purchaseId)
+        val disbursals = snowflakeLoader.loadDisbursals(purchaseId)
+        val disbursalDiffs = if (disbursals.isNotEmpty()) {
+            snowflakeLoader.loadDisbursalDiffs(purchaseId)
+        } else emptyList()
         val crossSchema = snowflakeLoader.loadCrossSchemaReconciliation(purchaseId)
 
         val unifiedChargeEvents = UnifiedChargeEventBuilder.build(
@@ -65,6 +70,9 @@ class PurchaseLoaderService(
             chargeServiceStatuses = chargeServiceStatuses,
             loanTransactions = loanTransactions,
             unifiedChargeEvents = unifiedChargeEvents,
+            disbursals = disbursals,
+            disbursalDiffs = disbursalDiffs,
+            purchaseProperties = purchaseProperties,
         )
 
         val elapsed = System.currentTimeMillis() - startTime

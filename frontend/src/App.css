@@ -2524,3 +2524,53 @@ textarea.form-input {
 .review-dot.review-status-at-work { background: #1565c0; }
 .review-dot.review-status-done { background: #2e7d32; }
 .review-dot.review-status-need-fixing { background: #b71c1c; }
+
+/* ===== Purchase Attribute Badges ===== */
+
+.badge-paused {
+  background: #e65100;
+  color: #fff;
+  padding: 2px 8px;
+  border-radius: 3px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.badge-multi-disbursal {
+  background: #4527a0;
+  color: #fff;
+  padding: 2px 8px;
+  border-radius: 3px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+/* ===== Disbursals Tab ===== */
+
+.row-pending-disbursal {
+  background: #fff8e1;
+}
+
+.badge-released {
+  background: #2e7d32;
+  color: #fff;
+  padding: 1px 6px;
+  border-radius: 3px;
+  font-size: 11px;
+}
+
+.badge-pending-disbursal {
+  background: #f57f17;
+  color: #fff;
+  padding: 1px 6px;
+  border-radius: 3px;
+  font-size: 11px;
+}
+
+.disbursal-diff {
+  display: inline-block;
+  font-size: 11px;
+  font-family: 'SF Mono', 'Consolas', monospace;
+  color: #e65100;
+  margin-right: 6px;
+}

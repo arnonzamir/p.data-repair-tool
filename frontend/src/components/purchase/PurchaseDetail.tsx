@@ -13,8 +13,9 @@ import RepairDialog from '../repair/RepairDialog';
 import UnifiedChargeEventsTab from './UnifiedChargeEventsTab';
 import ReplicateInline from '../replicate/ReplicateInline';
 import NotesAndLists from './NotesAndLists';
+import DisbursalsTab from './DisbursalsTab';
 
-type TabKey = 'payments' | 'findings' | 'money' | 'charges' | 'notifications' | 'actions' | 'tickets' | 'timeline';
+type TabKey = 'payments' | 'findings' | 'money' | 'charges' | 'disbursals' | 'notifications' | 'actions' | 'tickets' | 'timeline';
 
 interface PurchaseDetailProps {
   snapshot: PurchaseSnapshot;
@@ -90,7 +91,7 @@ const PurchaseDetail: React.FC<PurchaseDetailProps> = ({ snapshot, analysis, rep
   const tabs: { key: TabKey; label: string }[] = [
     { key: 'payments', label: 'Payments' },
     { key: 'charges', label: `Charges (${(snapshot.unifiedChargeEvents || []).length})` },
-    { key: 'money', label: 'Loan Info' },
+    ...(snapshot.isMultiDisbursal ? [{ key: 'disbursals' as TabKey, label: `Disbursals (${(snapshot.disbursals || []).length})` }] : []),
     { key: 'timeline', label: 'Timeline' },
     { key: 'actions', label: 'Purchase Actions' },
     { key: 'notifications', label: 'Notifications' },
@@ -137,6 +138,12 @@ const PurchaseDetail: React.FC<PurchaseDetailProps> = ({ snapshot, analysis, rep
           <span className={`badge badge-cpp-${snapshot.cppStatus.toLowerCase()}`}>
             {snapshot.cppStatus}
           </span>
+          {snapshot.isAutopayPaused && (
+            <span className="badge badge-paused">AUTOPAY PAUSED</span>
+          )}
+          {snapshot.isMultiDisbursal && (
+            <span className="badge badge-multi-disbursal">MULTI-DISBURSAL ({(snapshot.disbursals || []).length})</span>
+          )}
           {snapshot.specialStatus && (
             <span className="badge badge-special">{snapshot.specialStatus}</span>
           )}
@@ -336,6 +343,13 @@ const PurchaseDetail: React.FC<PurchaseDetailProps> = ({ snapshot, analysis, rep
             moneyMovement={snapshot.moneyMovement}
             crossSchema={snapshot.crossSchemaReconciliation}
             unifiedChargeEvents={snapshot.unifiedChargeEvents}
+          />
+        )}
+        {activeTab === 'disbursals' && snapshot.isMultiDisbursal && (
+          <DisbursalsTab
+            disbursals={snapshot.disbursals || []}
+            disbursalDiffs={snapshot.disbursalDiffs || []}
+            plan={snapshot.plan}
           />
         )}
         {activeTab === 'notifications' && (
