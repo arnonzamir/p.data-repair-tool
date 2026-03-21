@@ -23,9 +23,18 @@ echo "Snowflake user: $SNOWFLAKE_USER"
 # 2. Git auth for sync
 # -----------------------------------------------
 if [ "$SYNC_ENABLED" = "true" ]; then
-  # Fix SSH key permissions (Docker mounts may set them too open)
-  [ -f /root/.ssh/id_rsa ] && cp /root/.ssh/id_rsa /root/.ssh/id_rsa_copy && mv /root/.ssh/id_rsa_copy /root/.ssh/id_rsa && chmod 600 /root/.ssh/id_rsa
-  [ -f /root/.ssh/id_ed25519 ] && cp /root/.ssh/id_ed25519 /root/.ssh/id_ed25519_copy && mv /root/.ssh/id_ed25519_copy /root/.ssh/id_ed25519 && chmod 600 /root/.ssh/id_ed25519
+  # Fix SSH key permissions: copy to a writable location (bind mounts can't be chmod'd)
+  mkdir -p /root/.ssh-fixed
+  [ -f /root/.ssh/id_rsa ] && cp /root/.ssh/id_rsa /root/.ssh-fixed/id_rsa && chmod 600 /root/.ssh-fixed/id_rsa
+  [ -f /root/.ssh/id_ed25519 ] && cp /root/.ssh/id_ed25519 /root/.ssh-fixed/id_ed25519 && chmod 600 /root/.ssh-fixed/id_ed25519
+  cat > /root/.ssh/config << 'SSHCONF'
+Host github.com
+  StrictHostKeyChecking no
+  UserKnownHostsFile /dev/null
+  IdentityFile /root/.ssh-fixed/id_rsa
+  IdentityFile /root/.ssh-fixed/id_ed25519
+SSHCONF
+  chmod 600 /root/.ssh/config
 
   if [ -n "$GITHUB_TOKEN" ]; then
     # HTTPS mode: configure git credential helper with token
