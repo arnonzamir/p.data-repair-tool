@@ -238,7 +238,7 @@ const ListBrowser: React.FC<ListBrowserProps> = ({ activePurchaseId, onSelectPur
                     <span className={`review-dot review-status-${statusStr}`} title={statusStr} />
                   )}
                   <span className="mono">{pid}</span>
-                  {statusStr === 'at-work' && rs?.updatedBy && (
+                  {statusStr !== 'not-seen' && rs?.updatedBy && (
                     <span className={`sync-claim-badge ${rs.updatedBy === operator ? 'mine' : 'other'}`}>
                       {rs.updatedBy}
                     </span>
