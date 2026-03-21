@@ -185,9 +185,9 @@
       } ]
     },
     "21149505" : {
-      "status" : null,
-      "statusUpdatedBy" : null,
-      "statusUpdatedAt" : null,
+      "status" : "at-work",
+      "statusUpdatedBy" : "arnon",
+      "statusUpdatedAt" : "2026-03-21T16:34:03.576047Z",
       "claimedBy" : "arnon",
       "claimedAt" : "2026-03-21T16:34:00.075056Z",
       "notes" : [ ]
