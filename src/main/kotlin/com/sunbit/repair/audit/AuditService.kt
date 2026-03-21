@@ -21,6 +21,8 @@ import jakarta.annotation.PostConstruct
 class AuditService(
     private val objectMapper: ObjectMapper,
     @Value("\${cache.db-path:#{null}}") private val configuredDbPath: String?,
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private val syncService: com.sunbit.repair.sync.GitSyncService? = null,
 ) {
     private val log = LoggerFactory.getLogger(AuditService::class.java)
     private lateinit var dbUrl: String
@@ -108,6 +110,13 @@ class AuditService(
 
         log.info("[AuditService][record] action={} purchaseId={} operator={} id={}",
             action, purchaseId, operator, entry.id)
+
+        // Flag the audit log as dirty so the next sync poll exports it
+        try {
+            syncService?.markAuditDirty(operator)
+        } catch (e: Exception) {
+            log.warn("[AuditService][record] Failed to mark audit dirty for sync: {}", e.message)
+        }
 
         return entry
     }

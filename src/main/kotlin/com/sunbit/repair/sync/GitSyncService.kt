@@ -7,6 +7,10 @@ import org.springframework.scheduling.annotation.Scheduled
 import org.springframework.stereotype.Service
 import java.io.File
 import java.nio.file.Files
+import java.time.YearMonth
+import java.time.ZoneOffset
+import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicReference
 import jakarta.annotation.PostConstruct
 
 /**
@@ -35,6 +39,11 @@ class GitSyncService(
 
     // The SQLite DB path (same as PurchaseCacheService uses)
     private val dbPath get() = System.getProperty("user.home") + "/.sunbit/purchase-repair-cache.db"
+
+    // Dirty flag: set to true when AuditService writes a new entry, cleared after export
+    private val auditDirty = AtomicBoolean(false)
+    // The operator name from the most recent local audit write
+    private val lastAuditOperator = AtomicReference<String>(null)
 
     // Tables we sync (each gets a .sql file)
     private val syncTables = listOf(
@@ -98,6 +107,22 @@ class GitSyncService(
     @Scheduled(fixedDelayString = "\${sync.poll-interval-seconds:30}000")
     fun pollAndRefresh() {
         try {
+            // Export audit log if dirty (before pull, so we can commit+push together)
+            val operator = lastAuditOperator.get()
+            if (auditDirty.compareAndSet(true, false) && operator != null) {
+                try {
+                    exportAuditLog(operator)
+                    git("add", "$folder/audit/", dir = repoDir)
+                    val status = gitOutput("status", "--porcelain", dir = repoDir)
+                    if (status.isNotBlank()) {
+                        git("commit", "-m", "sync: audit log for $operator", dir = repoDir)
+                        git("push", "origin", branch, dir = repoDir)
+                    }
+                } catch (e: Exception) {
+                    log.warn("[GitSyncService][pollAndRefresh] Audit export/push failed: {}", e.message)
+                }
+            }
+
             // Snapshot current files before pull
             val beforeHashes = syncTables.associate { it.name to fileHash(File(syncDir, "${it.name}.sql")) }
 
@@ -113,8 +138,123 @@ class GitSyncService(
                     updateBase(table)
                 }
             }
+
+            // Import audit logs from other operators after pulling
+            try {
+                importAuditLogs(operator)
+            } catch (e: Exception) {
+                log.warn("[GitSyncService][pollAndRefresh] Audit import failed: {}", e.message)
+            }
         } catch (e: Exception) {
             log.warn("[GitSyncService][pollAndRefresh] Failed: {}", e.message)
+        }
+    }
+
+    // ------------------------------------------------------------------
+    // Audit log sync
+    // ------------------------------------------------------------------
+
+    /**
+     * Called by AuditService after writing a new entry.
+     * Sets the dirty flag so the next poll cycle exports.
+     */
+    fun markAuditDirty(operator: String) {
+        lastAuditOperator.set(operator)
+        auditDirty.set(true)
+        log.info("[GitSyncService][markAuditDirty] Flagged audit export for operator={}", operator)
+    }
+
+    /**
+     * Export the current month's audit entries for the given operator
+     * to {syncDir}/audit/{operator}/{YYYY-MM}.sql (full rewrite of current month).
+     */
+    fun exportAuditLog(operator: String) {
+        val now = YearMonth.now(ZoneOffset.UTC)
+        val monthStart = now.atDay(1).atStartOfDay().toInstant(ZoneOffset.UTC).toString()
+        val nextMonthStart = now.plusMonths(1).atDay(1).atStartOfDay().toInstant(ZoneOffset.UTC).toString()
+
+        val auditDir = File(syncDir, "audit/$operator")
+        auditDir.mkdirs()
+
+        val columns = listOf("id", "timestamp", "operator", "purchase_id", "action", "input_json", "output_json", "duration_ms")
+        val columnsStr = columns.joinToString(",")
+
+        val db = java.sql.DriverManager.getConnection("jdbc:sqlite:$dbPath")
+        val lines = mutableListOf<String>()
+        try {
+            val stmt = db.prepareStatement(
+                "SELECT $columnsStr FROM audit_log WHERE operator = ? AND timestamp >= ? AND timestamp < ? ORDER BY timestamp, id"
+            )
+            stmt.setString(1, operator)
+            stmt.setString(2, monthStart)
+            stmt.setString(3, nextMonthStart)
+            val rs = stmt.executeQuery()
+            while (rs.next()) {
+                val values = columns.map { col ->
+                    val value = rs.getString(col)
+                    if (value == null) "NULL" else "'" + value.replace("'", "''").replace("\n", "\\n") + "'"
+                }
+                lines.add("INSERT INTO audit_log($columnsStr) VALUES(${values.joinToString(",")});")
+            }
+        } catch (e: Exception) {
+            log.warn("[GitSyncService][exportAuditLog] Failed to export audit for {}: {}", operator, e.message)
+            return
+        } finally {
+            db.close()
+        }
+
+        val file = File(auditDir, "${now}.sql")
+        val header = "-- audit_log for $operator (${now})"
+        file.writeText(header + "\n" + lines.joinToString("\n") + "\n")
+
+        log.info("[GitSyncService][exportAuditLog] Exported {} entries for operator={} month={}", lines.size, operator, now)
+    }
+
+    /**
+     * Import audit entries from all other operators' directories.
+     * Uses INSERT OR IGNORE so UUID primary key deduplicates.
+     */
+    fun importAuditLogs(currentOperator: String?) {
+        val auditBaseDir = File(syncDir, "audit")
+        if (!auditBaseDir.exists() || !auditBaseDir.isDirectory) return
+
+        val operatorDirs = auditBaseDir.listFiles()?.filter { it.isDirectory } ?: return
+
+        val db = java.sql.DriverManager.getConnection("jdbc:sqlite:$dbPath")
+        try {
+            db.autoCommit = false
+            var totalImported = 0
+
+            for (opDir in operatorDirs) {
+                // Skip the current operator's directory (local DB is authoritative for own entries)
+                if (currentOperator != null && opDir.name == currentOperator) continue
+
+                val sqlFiles = opDir.listFiles()?.filter { it.extension == "sql" } ?: continue
+                for (sqlFile in sqlFiles) {
+                    val lines = sqlFile.readLines().filter { it.startsWith("INSERT INTO") }
+                    for (line in lines) {
+                        try {
+                            // Convert INSERT INTO to INSERT OR IGNORE INTO for idempotent import
+                            val ignoreLine = line.replaceFirst("INSERT INTO", "INSERT OR IGNORE INTO")
+                            db.createStatement().execute(ignoreLine.replace("\\n", "\n"))
+                            totalImported++
+                        } catch (e: Exception) {
+                            log.warn("[GitSyncService][importAuditLogs] Failed to execute line from {}: {}", sqlFile.name, e.message)
+                        }
+                    }
+                }
+            }
+
+            db.commit()
+            if (totalImported > 0) {
+                log.info("[GitSyncService][importAuditLogs] Processed {} INSERT OR IGNORE statements from other operators", totalImported)
+            }
+        } catch (e: Exception) {
+            log.error("[GitSyncService][importAuditLogs] Import failed: {}", e.message)
+            try { db.rollback() } catch (_: Exception) {}
+        } finally {
+            db.autoCommit = true
+            db.close()
         }
     }
 
@@ -260,6 +400,13 @@ class GitSyncService(
                 exportTable(table)
                 updateBase(table)
             }
+        }
+
+        // Import audit logs from other operators
+        try {
+            importAuditLogs(lastAuditOperator.get())
+        } catch (e: Exception) {
+            log.warn("[GitSyncService][initialImport] Audit import failed: {}", e.message)
         }
 
         // Commit any new exports

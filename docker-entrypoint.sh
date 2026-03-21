@@ -23,6 +23,32 @@ echo "Snowflake user: $SNOWFLAKE_USER"
 # 2. Git auth for sync
 # -----------------------------------------------
 if [ "$SYNC_ENABLED" = "true" ]; then
+  # Copy SSH keys from mounted host dir to writable location with correct permissions
+  mkdir -p /root/.ssh
+  if [ -d /root/.ssh-host ]; then
+    # Copy all private key files (no .pub extension, not directories, not config/known_hosts)
+    for f in /root/.ssh-host/*; do
+      fname=$(basename "$f")
+      if [ -f "$f" ] && [ "${fname##*.}" != "pub" ] && [ "$fname" != "config" ] && [ "$fname" != "known_hosts" ] && [ "$fname" != "authorized_keys" ]; then
+        cp "$f" "/root/.ssh/$fname"
+        chmod 600 "/root/.ssh/$fname"
+      fi
+    done
+    # SSH config: list all copied keys explicitly
+    {
+      echo "Host github.com"
+      echo "  StrictHostKeyChecking no"
+      echo "  UserKnownHostsFile /dev/null"
+      for kf in /root/.ssh/*; do
+        kname=$(basename "$kf")
+        if [ -f "$kf" ] && [ "$kname" != "config" ] && [ "$kname" != "known_hosts" ] && [ "$kname" != "known_hosts.old" ] && [ "$kname" != "authorized_keys" ]; then
+          echo "  IdentityFile /root/.ssh/$kname"
+        fi
+      done
+    } > /root/.ssh/config
+    chmod 600 /root/.ssh/config
+  fi
+
   if [ -n "$GITHUB_TOKEN" ]; then
     # HTTPS mode: configure git credential helper with token
     echo "Git auth:   HTTPS token"
@@ -34,18 +60,19 @@ if [ "$SYNC_ENABLED" = "true" ]; then
       export SYNC_REPO_URL="$HTTPS_URL"
       echo "            Rewrote repo URL to: $SYNC_REPO_URL"
     fi
-  elif [ -n "$SSH_AUTH_SOCK" ] && [ -e "$SSH_AUTH_SOCK" ]; then
-    echo "Git auth:   SSH agent forwarded"
+  elif ls /root/.ssh/ 2>/dev/null | grep -qv -e config -e known_hosts -e authorized_keys -e '\.pub$'; then
+    KEY_COUNT=$(ls /root/.ssh/ 2>/dev/null | grep -cv -e config -e known_hosts -e authorized_keys -e '\.pub$' || echo 0)
+    echo "Git auth:   $KEY_COUNT SSH key(s) found"
     if ssh -o ConnectTimeout=5 -o StrictHostKeyChecking=no -T git@github.com 2>&1 | grep -q "successfully authenticated"; then
       echo "GitHub SSH: OK"
     else
-      echo "WARNING:    SSH agent forwarded but GitHub auth failed."
+      echo "WARNING:    SSH keys found but GitHub auth failed. Keys may not be authorized."
       WARNINGS=$((WARNINGS + 1))
     fi
   else
-    echo "WARNING:    No git credentials. Set GITHUB_TOKEN for HTTPS or ensure SSH agent is running."
-    echo "            HTTPS: add GITHUB_TOKEN=ghp_... to .env"
-    echo "            SSH:   make sure ssh-agent is running with your key loaded (ssh-add -l)"
+    echo "WARNING:    No git credentials found."
+    echo "            Option 1: Set GITHUB_TOKEN=ghp_... in .env (HTTPS)"
+    echo "            Option 2: Ensure SSH keys exist in ~/.ssh/ on host"
     WARNINGS=$((WARNINGS + 1))
   fi
 else

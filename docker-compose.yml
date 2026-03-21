@@ -33,14 +33,13 @@ services:
       SYNC_LOCAL_PATH: /data/sync
       SYNC_POLL_INTERVAL: "30"
       GITHUB_TOKEN: ${GITHUB_TOKEN:-}
-      SSH_AUTH_SOCK: /run/host-services/ssh-auth.sock
 
     volumes:
       # Persist Snowflake cache and SQLite DB across container restarts
       - repair-cache:/root/.sunbit
 
-      # SSH agent forwarding for git sync (macOS)
-      - ${SSH_AUTH_SOCK:-/run/host-services/ssh-auth.sock}:/run/host-services/ssh-auth.sock
+      # SSH keys for git sync (mount the whole .ssh dir, entrypoint copies with correct permissions)
+      - ${HOME}/.ssh:/root/.ssh-host:ro
 
       # Snowflake SSO token cache (so browser auth only happens once)
       - ${HOME}/.cache/snowflake:/root/.cache/snowflake
