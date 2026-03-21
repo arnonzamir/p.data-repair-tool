@@ -87,8 +87,8 @@
     "status" : "done",
     "statusUpdatedBy" : "arnon.zamir",
     "statusUpdatedAt" : "2026-03-20T20:01:12.436384Z",
-    "claimedBy" : "arnon.zamir",
-    "claimedAt" : "2026-03-21T18:02:16.639081Z",
+    "claimedBy" : null,
+    "claimedAt" : null,
     "notes" : [ {
       "text" : "another bug",
       "by" : "arnon.zamir",
