@@ -5,11 +5,14 @@ Investigates, diagnoses, and repairs broken loans in Sunbit's legacy LMS payment
 ## Install (Docker, recommended)
 
 ```bash
-# One-line install:
-curl -sL https://raw.githubusercontent.com/sunbit-dev/account-management-service/purchase-repair-sync/repair-tool/install.sh | bash
+# Clone and run:
+git clone -b purchase-repair-sync git@github.com:sunbit-dev/account-management-service.git purchase-repair
+cd purchase-repair/repair-tool
+bash install.sh
 
-# Or manually:
+# Or manually (no clone needed):
 docker pull sunbit/arnon-temp:purchase-repair-tool
+mkdir -p ~/.sunbit
 docker run -d --name repair-tool --restart unless-stopped \
   -p 8090:8090 \
   -e SNOWFLAKE_USER=your-name@sunbit.com \
