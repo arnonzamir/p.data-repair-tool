@@ -23,6 +23,10 @@ echo "Snowflake user: $SNOWFLAKE_USER"
 # 2. Git auth for sync
 # -----------------------------------------------
 if [ "$SYNC_ENABLED" = "true" ]; then
+  # Fix SSH key permissions (Docker mounts may set them too open)
+  [ -f /root/.ssh/id_rsa ] && cp /root/.ssh/id_rsa /root/.ssh/id_rsa_copy && mv /root/.ssh/id_rsa_copy /root/.ssh/id_rsa && chmod 600 /root/.ssh/id_rsa
+  [ -f /root/.ssh/id_ed25519 ] && cp /root/.ssh/id_ed25519 /root/.ssh/id_ed25519_copy && mv /root/.ssh/id_ed25519_copy /root/.ssh/id_ed25519 && chmod 600 /root/.ssh/id_ed25519
+
   if [ -n "$GITHUB_TOKEN" ]; then
     # HTTPS mode: configure git credential helper with token
     echo "Git auth:   HTTPS token"

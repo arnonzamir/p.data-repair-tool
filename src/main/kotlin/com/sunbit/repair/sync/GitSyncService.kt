@@ -39,10 +39,14 @@ class GitSyncService(
     @PostConstruct
     fun init() {
         log.info("[GitSyncService][init] repo={} local={} branch={} folder={}", repoUrl, localPath, branch, folder)
-        ensureRepo()
-        pull()
-        loadState()
-        log.info("[GitSyncService][init] Loaded sync state for {} purchases", state.size)
+        try {
+            ensureRepo()
+            pull()
+            loadState()
+            log.info("[GitSyncService][init] Loaded sync state for {} purchases", state.size)
+        } catch (e: Exception) {
+            log.warn("[GitSyncService][init] Sync initialization failed (app will start without sync): {}", e.message)
+        }
     }
 
     // ------------------------------------------------------------------
