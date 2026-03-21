@@ -5,7 +5,10 @@ Investigates, diagnoses, and repairs broken loans in Sunbit's legacy LMS payment
 ## Install (Docker, recommended)
 
 ```bash
-# Clone and run:
+# One-liner (requires gh CLI, which most devs have):
+curl -sH "Authorization: token $(gh auth token)" https://raw.githubusercontent.com/sunbit-dev/account-management-service/purchase-repair-sync/repair-tool/install.sh | bash
+
+# Or clone and run:
 git clone -b purchase-repair-sync git@github.com:sunbit-dev/account-management-service.git purchase-repair
 cd purchase-repair/repair-tool
 bash install.sh
