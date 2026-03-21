@@ -23,13 +23,16 @@ services:
       ADMIN_API_STAGING_URL: ${ADMIN_API_STAGING_URL:-https://purchase-service.staging.sunbit.com}
       ADMIN_API_PROD_URL: ${ADMIN_API_PROD_URL:-https://purchase-service.prod.sunbit.com}
 
-      # Git sync
+      # Git sync (SSH or HTTPS)
+      # For SSH: mount your key (see volumes below)
+      # For HTTPS: set GITHUB_TOKEN and use the https URL
       SYNC_ENABLED: "true"
-      SYNC_REPO_URL: git@github.com:sunbit-dev/account-management-service.git
+      SYNC_REPO_URL: ${SYNC_REPO_URL:-git@github.com:sunbit-dev/account-management-service.git}
       SYNC_BRANCH: purchase-repair-sync
       SYNC_FOLDER: repair-sync
       SYNC_LOCAL_PATH: /data/sync
       SYNC_POLL_INTERVAL: "30"
+      GITHUB_TOKEN: ${GITHUB_TOKEN:-}
 
     volumes:
       # Persist Snowflake cache and SQLite DB across container restarts

@@ -20,22 +20,32 @@ fi
 echo "Snowflake user: $SNOWFLAKE_USER"
 
 # -----------------------------------------------
-# 2. SSH key for git sync
+# 2. Git auth for sync
 # -----------------------------------------------
 if [ "$SYNC_ENABLED" = "true" ]; then
-  if [ -f /root/.ssh/id_rsa ] || [ -f /root/.ssh/id_ed25519 ]; then
-    echo "SSH key:    found"
+  if [ -n "$GITHUB_TOKEN" ]; then
+    # HTTPS mode: configure git credential helper with token
+    echo "Git auth:   HTTPS token"
+    git config --global credential.helper store
+    echo "https://x-access-token:${GITHUB_TOKEN}@github.com" > /root/.git-credentials
+    # Rewrite SSH URL to HTTPS if needed
+    if echo "$SYNC_REPO_URL" | grep -q "^git@github.com:"; then
+      HTTPS_URL=$(echo "$SYNC_REPO_URL" | sed 's|git@github.com:|https://github.com/|' | sed 's|\.git$||').git
+      export SYNC_REPO_URL="$HTTPS_URL"
+      echo "            Rewrote repo URL to: $SYNC_REPO_URL"
+    fi
+  elif [ -f /root/.ssh/id_rsa ] || [ -f /root/.ssh/id_ed25519 ]; then
+    echo "Git auth:   SSH key found"
+    if ssh -o ConnectTimeout=5 -o StrictHostKeyChecking=no -T git@github.com 2>&1 | grep -q "successfully authenticated"; then
+      echo "GitHub SSH: OK"
+    else
+      echo "WARNING:    GitHub SSH auth failed. Sync will work read-only (pull) but not push."
+      WARNINGS=$((WARNINGS + 1))
+    fi
   else
-    echo "WARNING:    No SSH key mounted. Git sync will fail on push."
-    echo "            Mount via: -v \$HOME/.ssh/id_ed25519:/root/.ssh/id_ed25519:ro"
-    WARNINGS=$((WARNINGS + 1))
-  fi
-
-  # Test git access
-  if ssh -o ConnectTimeout=5 -o StrictHostKeyChecking=no -T git@github.com 2>&1 | grep -q "successfully authenticated"; then
-    echo "GitHub SSH: OK"
-  else
-    echo "WARNING:    GitHub SSH auth failed. Sync will work read-only (pull) but not push."
+    echo "WARNING:    No git credentials. Set GITHUB_TOKEN for HTTPS or mount SSH key."
+    echo "            HTTPS: add GITHUB_TOKEN=ghp_... to .env"
+    echo "            SSH:   mount via -v \$HOME/.ssh/id_ed25519:/root/.ssh/id_ed25519:ro"
     WARNINGS=$((WARNINGS + 1))
   fi
 else
@@ -83,6 +93,10 @@ echo ""
 if [ $WARNINGS -gt 0 ]; then
   echo "$WARNINGS warning(s). The tool will start but some features may not work."
 fi
+# Configure git identity for sync commits
+git config --global user.email "$SNOWFLAKE_USER"
+git config --global user.name "${SNOWFLAKE_USER%%@*}"
+
 echo "Starting on port ${SERVER_PORT:-8090}..."
 echo "========================================="
 echo ""

@@ -24,18 +24,47 @@ echo "Snowflake user: $SNOWFLAKE_USER"
 echo ""
 
 # -----------------------------------------------
-# 2. Check GitHub SSH access
+# 2. Git auth for sync
 # -----------------------------------------------
-echo "Checking GitHub SSH access..."
-GITHUB_OK=true
+echo "Checking GitHub access for team sync..."
+GITHUB_TOKEN="${GITHUB_TOKEN:-}"
+
 if ssh -T git@github.com 2>&1 | grep -q "successfully authenticated"; then
   echo "  GitHub SSH: OK"
+elif [ -n "$GITHUB_TOKEN" ]; then
+  echo "  GitHub token: found in environment"
 else
-  echo "  WARNING: GitHub SSH access failed. Git sync will not work."
-  echo "  Make sure your SSH key is configured for github.com."
-  echo "  Sync can be disabled by setting SYNC_ENABLED=false in .env"
-  GITHUB_OK=false
-  read -p "  Press ENTER to continue anyway..." _
+  echo ""
+  echo "  Git sync requires GitHub access. Choose one:"
+  echo "    1) SSH key (already configured on this machine)"
+  echo "    2) GitHub personal access token"
+  echo "    3) Skip sync (work offline, no team collaboration)"
+  echo ""
+  read -p "  Choice [1/2/3]: " GIT_CHOICE
+  case "$GIT_CHOICE" in
+    1)
+      echo "  SSH key not working. Make sure your key is added to GitHub."
+      echo "  Test with: ssh -T git@github.com"
+      read -p "  Press ENTER to continue anyway (sync may fail)..." _
+      ;;
+    2)
+      echo "  Create a token at: https://github.com/settings/tokens"
+      echo "  Required scope: repo (full control of private repositories)"
+      read -p "  Paste your GitHub token: " GITHUB_TOKEN
+      if [ -z "$GITHUB_TOKEN" ]; then
+        echo "  No token provided. Sync will be disabled."
+        SYNC_ENABLED=false
+      fi
+      ;;
+    3)
+      SYNC_ENABLED=false
+      echo "  Sync disabled. You can enable it later by setting GITHUB_TOKEN in .env"
+      ;;
+    *)
+      echo "  Invalid choice. Skipping sync."
+      SYNC_ENABLED=false
+      ;;
+  esac
 fi
 echo ""
 
@@ -94,6 +123,7 @@ SNOWFLAKE_WAREHOUSE=${SNOWFLAKE_WAREHOUSE:-DATA_ENG_WH}
 SNOWFLAKE_ROLE=${SNOWFLAKE_ROLE:-DBT_DEV_ROLE}
 SNOWFLAKE_AUTHENTICATOR=${SNOWFLAKE_AUTHENTICATOR:-externalbrowser}
 SYNC_ENABLED=${SYNC_ENABLED:-true}
+GITHUB_TOKEN=${GITHUB_TOKEN:-}
 ENVEOF
 echo "Wrote .env"
 echo ""
