@@ -7,7 +7,7 @@ services:
       - "8090:8090"
     environment:
       # === REQUIRED: Set your Snowflake user ===
-      SNOWFLAKE_USER: ${SNOWFLAKE_USER:?Set SNOWFLAKE_USER in .env (your-name@sunbit.com)}
+      SNOWFLAKE_USER: ${SNOWFLAKE_USER:-}
 
       # Snowflake connection (defaults work for most users)
       SNOWFLAKE_ACCOUNT: ${SNOWFLAKE_ACCOUNT:-WXA20498.us-west-2.privatelink}
