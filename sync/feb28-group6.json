@@ -1,219 +1,196 @@
 {
-  "purchases": {
-    "21995347": {
-      "status": "need-fixing",
-      "statusUpdatedBy": "arnon.zamir",
-      "statusUpdatedAt": "2026-03-20T19:58:28.747705Z",
-      "claimedBy": null,
-      "claimedAt": null,
-      "notes": [
-        {
-          "text": "feb 27th payment was succesful \nfeb 28th payment failed for 12 days until the customer seemingly paid again. there are service tickets. resolution unclear, needs investigation",
-          "by": "arnon.zamir",
-          "at": "2026-03-20T19:29:47.876428Z"
-        }
-      ]
+  "purchases" : {
+    "21995347" : {
+      "status" : "need-fixing",
+      "statusUpdatedBy" : "arnon.zamir",
+      "statusUpdatedAt" : "2026-03-20T19:58:28.747705Z",
+      "claimedBy" : null,
+      "claimedAt" : null,
+      "notes" : [ {
+        "text" : "feb 27th payment was succesful \nfeb 28th payment failed for 12 days until the customer seemingly paid again. there are service tickets. resolution unclear, needs investigation",
+        "by" : "arnon.zamir",
+        "at" : "2026-03-20T19:29:47.876428Z"
+      } ]
     },
-    "22313554": {
-      "status": "need-fixing",
-      "statusUpdatedBy": "arnon.zamir",
-      "statusUpdatedAt": "2026-03-20T19:59:50.252166Z",
-      "claimedBy": null,
-      "claimedAt": null,
-      "notes": [
-        {
-          "text": "something changed with the loan, seemingly not related to this incident. was handled by a cc agent as related to the incident apparently becasue the timing was close.",
-          "by": "arnon.zamir",
-          "at": "2026-03-20T19:43:06.895054Z"
-        },
-        {
-          "text": "on second thought, needs another look",
-          "by": "arnon.zamir",
-          "at": "2026-03-20T19:44:05.177205Z"
-        }
-      ]
+    "22313554" : {
+      "status" : "need-fixing",
+      "statusUpdatedBy" : "arnon.zamir",
+      "statusUpdatedAt" : "2026-03-20T19:59:50.252166Z",
+      "claimedBy" : null,
+      "claimedAt" : null,
+      "notes" : [ {
+        "text" : "something changed with the loan, seemingly not related to this incident. was handled by a cc agent as related to the incident apparently becasue the timing was close.",
+        "by" : "arnon.zamir",
+        "at" : "2026-03-20T19:43:06.895054Z"
+      }, {
+        "text" : "on second thought, needs another look",
+        "by" : "arnon.zamir",
+        "at" : "2026-03-20T19:44:05.177205Z"
+      } ]
     },
-    "22546636": {
-      "status": "need-fixing",
-      "statusUpdatedBy": "arnon.zamir",
-      "statusUpdatedAt": "2026-03-20T20:04:45.982085Z",
-      "claimedBy": null,
-      "claimedAt": null,
-      "notes": [
-        {
-          "text": "double charged then tried to charge again until the 13th, then unclear what happened",
-          "by": "arnon.zamir",
-          "at": "2026-03-20T20:06:13.296441Z"
-        }
-      ]
+    "22546636" : {
+      "status" : "need-fixing",
+      "statusUpdatedBy" : "arnon.zamir",
+      "statusUpdatedAt" : "2026-03-20T20:04:45.982085Z",
+      "claimedBy" : null,
+      "claimedAt" : null,
+      "notes" : [ {
+        "text" : "double charged then tried to charge again until the 13th, then unclear what happened",
+        "by" : "arnon.zamir",
+        "at" : "2026-03-20T20:06:13.296441Z"
+      } ]
     },
-    "22561139": {
-      "status": "need-fixing",
-      "statusUpdatedBy": "arnon.zamir",
-      "statusUpdatedAt": "2026-03-20T20:16:47.601076Z",
-      "claimedBy": null,
-      "claimedAt": null,
-      "notes": [
-        {
-          "text": "double charge exists, couldnt charge until autopay stopped",
-          "by": "arnon.zamir",
-          "at": "2026-03-20T20:17:11.679366Z"
-        }
-      ]
+    "22561139" : {
+      "status" : "need-fixing",
+      "statusUpdatedBy" : "arnon.zamir",
+      "statusUpdatedAt" : "2026-03-20T20:16:47.601076Z",
+      "claimedBy" : null,
+      "claimedAt" : null,
+      "notes" : [ {
+        "text" : "double charge exists, couldnt charge until autopay stopped",
+        "by" : "arnon.zamir",
+        "at" : "2026-03-20T20:17:11.679366Z"
+      } ]
     },
-    "22570513": {
-      "status": "need-fixing",
-      "statusUpdatedBy": "arnon.zamir",
-      "statusUpdatedAt": "2026-03-20T20:18:06.472363Z",
-      "claimedBy": null,
-      "claimedAt": null,
-      "notes": [
-        {
-          "text": "paid off on feb 27th. another payment was created on feb 28th. need to remove it. doesn't seem to have had any charge attempts on it",
-          "by": "arnon.zamir",
-          "at": "2026-03-20T20:18:53.992251Z"
-        }
-      ]
+    "22570513" : {
+      "status" : "need-fixing",
+      "statusUpdatedBy" : "arnon.zamir",
+      "statusUpdatedAt" : "2026-03-20T20:18:06.472363Z",
+      "claimedBy" : null,
+      "claimedAt" : null,
+      "notes" : [ {
+        "text" : "paid off on feb 27th. another payment was created on feb 28th. need to remove it. doesn't seem to have had any charge attempts on it",
+        "by" : "arnon.zamir",
+        "at" : "2026-03-20T20:18:53.992251Z"
+      } ]
     },
-    "23053953": {
-      "status": "need-fixing",
-      "statusUpdatedBy": "arnon.zamir",
-      "statusUpdatedAt": "2026-03-20T20:20:30.928027Z",
-      "claimedBy": null,
-      "claimedAt": null,
-      "notes": [
-        {
-          "text": "double payment created. needs to be removed. it's not 0.",
-          "by": "arnon.zamir",
-          "at": "2026-03-20T20:21:07.187775Z"
-        }
-      ]
+    "23053953" : {
+      "status" : "need-fixing",
+      "statusUpdatedBy" : "arnon.zamir",
+      "statusUpdatedAt" : "2026-03-20T20:20:30.928027Z",
+      "claimedBy" : null,
+      "claimedAt" : null,
+      "notes" : [ {
+        "text" : "double payment created. needs to be removed. it's not 0.",
+        "by" : "arnon.zamir",
+        "at" : "2026-03-20T20:21:07.187775Z"
+      } ]
     },
-    "23058513": {
-      "status": "need-fixing",
-      "statusUpdatedBy": "arnon.zamir",
-      "statusUpdatedAt": "2026-03-20T20:22:40.743294Z",
-      "claimedBy": null,
-      "claimedAt": null,
-      "notes": [
-        {
-          "text": "double charge exists, couldnt charge until autopay stopped",
-          "by": "arnon.zamir",
-          "at": "2026-03-20T20:22:01.878801Z"
-        }
-      ]
+    "23058513" : {
+      "status" : "need-fixing",
+      "statusUpdatedBy" : "arnon.zamir",
+      "statusUpdatedAt" : "2026-03-20T20:22:40.743294Z",
+      "claimedBy" : null,
+      "claimedAt" : null,
+      "notes" : [ {
+        "text" : "double charge exists, couldnt charge until autopay stopped",
+        "by" : "arnon.zamir",
+        "at" : "2026-03-20T20:22:01.878801Z"
+      } ]
     },
-    "23065299": {
-      "status": "need-fixing",
-      "statusUpdatedBy": "arnon.zamir",
-      "statusUpdatedAt": "2026-03-20T20:25:52.364505Z",
-      "claimedBy": null,
-      "claimedAt": null,
-      "notes": [
-        {
-          "text": "paid, unpaid, has an active feb 27th payent and then nothing. Loan needs to be rebuilt",
-          "by": "arnon.zamir",
-          "at": "2026-03-20T20:25:50.851877Z"
-        }
-      ]
+    "23065299" : {
+      "status" : "need-fixing",
+      "statusUpdatedBy" : "arnon.zamir",
+      "statusUpdatedAt" : "2026-03-20T20:25:52.364505Z",
+      "claimedBy" : null,
+      "claimedAt" : null,
+      "notes" : [ {
+        "text" : "paid, unpaid, has an active feb 27th payent and then nothing. Loan needs to be rebuilt",
+        "by" : "arnon.zamir",
+        "at" : "2026-03-20T20:25:50.851877Z"
+      } ]
     },
-    "23077693": {
-      "status": "need-fixing",
-      "statusUpdatedBy": "arnon.zamir",
-      "statusUpdatedAt": "2026-03-20T20:26:23.715773Z",
-      "claimedBy": null,
-      "claimedAt": null,
-      "notes": [
-        {
-          "text": "double charge exists, couldnt charge until autopay stopped",
-          "by": "arnon.zamir",
-          "at": "2026-03-20T20:26:22.677724Z"
-        }
-      ]
+    "23077693" : {
+      "status" : "need-fixing",
+      "statusUpdatedBy" : "arnon.zamir",
+      "statusUpdatedAt" : "2026-03-20T20:26:23.715773Z",
+      "claimedBy" : null,
+      "claimedAt" : null,
+      "notes" : [ {
+        "text" : "double charge exists, couldnt charge until autopay stopped",
+        "by" : "arnon.zamir",
+        "at" : "2026-03-20T20:26:22.677724Z"
+      } ]
     },
-    "23091984": {
-      "status": "need-fixing",
-      "statusUpdatedBy": "arnon.zamir",
-      "statusUpdatedAt": "2026-03-20T20:27:04.598434Z",
-      "claimedBy": null,
-      "claimedAt": null,
-      "notes": [
-        {
-          "text": "double charge exists, couldnt charge until autopay stopped",
-          "by": "arnon.zamir",
-          "at": "2026-03-20T20:27:03.763805Z"
-        }
-      ]
+    "23091984" : {
+      "status" : "need-fixing",
+      "statusUpdatedBy" : "arnon.zamir",
+      "statusUpdatedAt" : "2026-03-20T20:27:04.598434Z",
+      "claimedBy" : null,
+      "claimedAt" : null,
+      "notes" : [ {
+        "text" : "double charge exists, couldnt charge until autopay stopped",
+        "by" : "arnon.zamir",
+        "at" : "2026-03-20T20:27:03.763805Z"
+      } ]
     },
-    "23107221": {
-      "status": "need-fixing",
-      "statusUpdatedBy": "arnon.zamir",
-      "statusUpdatedAt": "2026-03-20T20:27:49.536834Z",
-      "claimedBy": null,
-      "claimedAt": null,
-      "notes": [
-        {
-          "text": "double charge exists, couldnt charge until autopay stopped",
-          "by": "arnon.zamir",
-          "at": "2026-03-20T20:27:48.631151Z"
-        }
-      ]
+    "23107221" : {
+      "status" : "need-fixing",
+      "statusUpdatedBy" : "arnon.zamir",
+      "statusUpdatedAt" : "2026-03-20T20:27:49.536834Z",
+      "claimedBy" : null,
+      "claimedAt" : null,
+      "notes" : [ {
+        "text" : "double charge exists, couldnt charge until autopay stopped",
+        "by" : "arnon.zamir",
+        "at" : "2026-03-20T20:27:48.631151Z"
+      } ]
     },
-    "23623053": {
-      "status": "need-fixing",
-      "statusUpdatedBy": "arnon.zamir",
-      "statusUpdatedAt": "2026-03-20T20:29:41.482478Z",
-      "claimedBy": null,
-      "claimedAt": null,
-      "notes": [
-        {
-          "text": "double charge exists, couldnt charge until autopay stopped",
-          "by": "arnon.zamir",
-          "at": "2026-03-20T20:29:38.605010Z"
-        }
-      ]
+    "23623053" : {
+      "status" : "need-fixing",
+      "statusUpdatedBy" : "arnon.zamir",
+      "statusUpdatedAt" : "2026-03-20T20:29:41.482478Z",
+      "claimedBy" : null,
+      "claimedAt" : null,
+      "notes" : [ {
+        "text" : "double charge exists, couldnt charge until autopay stopped",
+        "by" : "arnon.zamir",
+        "at" : "2026-03-20T20:29:38.605010Z"
+      } ]
     },
-    "23632178": {
-      "status": "need-fixing",
-      "statusUpdatedBy": "arnon.zamir",
-      "statusUpdatedAt": "2026-03-20T20:30:00.951108Z",
-      "claimedBy": null,
-      "claimedAt": null,
-      "notes": [
-        {
-          "text": "double charge exists, couldnt charge until autopay stopped",
-          "by": "arnon.zamir",
-          "at": "2026-03-20T20:29:59.468650Z"
-        }
-      ]
+    "23632178" : {
+      "status" : "need-fixing",
+      "statusUpdatedBy" : "arnon.zamir",
+      "statusUpdatedAt" : "2026-03-20T20:30:00.951108Z",
+      "claimedBy" : null,
+      "claimedAt" : null,
+      "notes" : [ {
+        "text" : "double charge exists, couldnt charge until autopay stopped",
+        "by" : "arnon.zamir",
+        "at" : "2026-03-20T20:29:59.468650Z"
+      } ]
     },
-    "23643576": {
-      "status": "need-fixing",
-      "statusUpdatedBy": "arnon.zamir",
-      "statusUpdatedAt": "2026-03-20T20:30:35.747513Z",
-      "claimedBy": null,
-      "claimedAt": null,
-      "notes": [
-        {
-          "text": "need to remove the feb28th payment",
-          "by": "arnon.zamir",
-          "at": "2026-03-20T20:30:34.730628Z"
-        }
-      ]
+    "23643576" : {
+      "status" : "need-fixing",
+      "statusUpdatedBy" : "arnon.zamir",
+      "statusUpdatedAt" : "2026-03-20T20:30:35.747513Z",
+      "claimedBy" : null,
+      "claimedAt" : null,
+      "notes" : [ {
+        "text" : "need to remove the feb28th payment",
+        "by" : "arnon.zamir",
+        "at" : "2026-03-20T20:30:34.730628Z"
+      } ]
     },
-    "23655290": {
-      "status": "need-fixing",
-      "statusUpdatedBy": "arnon.zamir",
-      "statusUpdatedAt": "2026-03-20T20:07:46.305926Z",
-      "claimedBy": null,
-      "claimedAt": null,
-      "notes": [
-        {
-          "text": "february payment is duplicated. not paid somwhow. maybe not on autopay?",
-          "by": "arnon.zamir",
-          "at": "2026-03-20T20:07:45.078673Z"
-        }
-      ]
+    "23655290" : {
+      "status" : "need-fixing",
+      "statusUpdatedBy" : "arnon.zamir",
+      "statusUpdatedAt" : "2026-03-20T20:07:46.305926Z",
+      "claimedBy" : null,
+      "claimedAt" : null,
+      "notes" : [ {
+        "text" : "february payment is duplicated. not paid somwhow. maybe not on autopay?",
+        "by" : "arnon.zamir",
+        "at" : "2026-03-20T20:07:45.078673Z"
+      } ]
+    },
+    "21149505" : {
+      "status" : null,
+      "statusUpdatedBy" : null,
+      "statusUpdatedAt" : null,
+      "claimedBy" : "arnon",
+      "claimedAt" : "2026-03-21T16:34:00.075056Z",
+      "notes" : [ ]
     }
   }
 }
