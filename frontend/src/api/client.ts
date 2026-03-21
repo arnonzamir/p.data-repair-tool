@@ -263,40 +263,7 @@ export const enableManipulator = (manipulatorId: string) =>
 export const disableManipulator = (manipulatorId: string) =>
   apiFetch<any>(`/api/v1/manipulators/toggle/${manipulatorId}/disable`, { method: 'PUT' });
 
-// Sync (git-based collaborative state, purchase-level)
-export interface SyncPurchaseState {
-  status?: string;
-  statusUpdatedBy?: string;
-  statusUpdatedAt?: string;
-  claimedBy?: string;
-  claimedAt?: string;
-  notes: { text: string; by: string; at: string }[];
-}
-
-export const getSyncPurchaseStates = (purchaseIds: number[]) =>
-  apiFetch<Record<number, SyncPurchaseState>>('/api/v1/sync/purchases/batch', {
-    method: 'POST',
-    body: JSON.stringify({ purchaseIds }),
-  });
-
-export const updateSyncStatus = (purchaseId: number, status: string) =>
-  apiFetch<any>(`/api/v1/sync/purchases/${purchaseId}/status`, {
-    method: 'PUT',
-    body: JSON.stringify({ status }),
-  });
-
-export const claimSyncPurchase = (purchaseId: number) =>
-  apiFetch<any>(`/api/v1/sync/purchases/${purchaseId}/claim`, { method: 'PUT' });
-
-export const unclaimSyncPurchase = (purchaseId: number) =>
-  apiFetch<any>(`/api/v1/sync/purchases/${purchaseId}/claim`, { method: 'DELETE' });
-
-export const addSyncNote = (purchaseId: number, text: string) =>
-  apiFetch<any>(`/api/v1/sync/purchases/${purchaseId}/notes`, {
-    method: 'POST',
-    body: JSON.stringify({ text }),
-  });
-
+// Sync (pull latest from git)
 export const pullSync = () =>
   apiFetch<any>('/api/v1/sync/pull', { method: 'POST' });
 

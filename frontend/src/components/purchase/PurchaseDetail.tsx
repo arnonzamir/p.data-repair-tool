@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import type { PurchaseSnapshot, AnalysisResult, SuggestedRepair, Finding, ReplicationRecord } from '../../types/domain';
-import { rollbackReplication, getConfig, getSyncPurchaseStates, SyncPurchaseState } from '../../api/client';
+import { rollbackReplication, getConfig, getReviewStatus, ReviewStatus } from '../../api/client';
 import PaymentsTable from './PaymentsTable';
 import PaymentsTab from './PaymentsTab';
 import PurchaseTimeline from './PurchaseTimeline';
@@ -68,14 +68,14 @@ const PurchaseDetail: React.FC<PurchaseDetailProps> = ({ snapshot, analysis, rep
   const [showReplicate, setShowReplicate] = useState(false);
   const [rollingBack, setRollingBack] = useState<string | null>(null);
   const [ccUrls, setCcUrls] = useState<Record<string, string>>({});
-  const [syncState, setSyncState] = useState<SyncPurchaseState | null>(null);
+  const [reviewState, setReviewState] = useState<ReviewStatus | null>(null);
 
   useEffect(() => { getCallCenterUrls().then(setCcUrls); }, []);
 
   useEffect(() => {
-    getSyncPurchaseStates([snapshot.purchaseId])
-      .then((states) => setSyncState(states[snapshot.purchaseId] || null))
-      .catch(() => setSyncState(null));
+    getReviewStatus(snapshot.purchaseId)
+      .then(setReviewState)
+      .catch(() => setReviewState(null));
   }, [snapshot.purchaseId]);
 
   const handleRollback = useCallback(async (r: ReplicationRecord) => {
@@ -214,11 +214,11 @@ const PurchaseDetail: React.FC<PurchaseDetailProps> = ({ snapshot, analysis, rep
         </div>
       </div>
 
-      {/* Claim warning */}
-      {syncState?.claimedBy && syncState.claimedBy !== (localStorage.getItem('operator') || '') && (
+      {/* Work-in-progress warning */}
+      {reviewState?.status === 'at-work' && reviewState.updatedBy && reviewState.updatedBy !== (localStorage.getItem('operator') || '') && (
         <div className="claim-warning">
-          This purchase is currently claimed by <strong>{syncState.claimedBy}</strong>
-          {syncState.claimedAt ? ` (${timeAgo(syncState.claimedAt)})` : ''}.
+          This purchase is being worked on by <strong>{reviewState.updatedBy}</strong>
+          {reviewState.updatedAt ? ` (${timeAgo(reviewState.updatedAt)})` : ''}.
           Coordinate before making changes.
         </div>
       )}

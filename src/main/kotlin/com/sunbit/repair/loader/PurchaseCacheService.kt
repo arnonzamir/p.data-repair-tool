@@ -31,6 +31,8 @@ class PurchaseCacheService(
     private val loaderService: PurchaseLoaderService,
     private val objectMapper: ObjectMapper,
     @Value("\${cache.db-path:#{null}}") private val configuredDbPath: String?,
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private val syncService: com.sunbit.repair.sync.GitSyncService? = null,
 ) {
     private val log = LoggerFactory.getLogger(PurchaseCacheService::class.java)
     private lateinit var dbUrl: String
@@ -341,6 +343,7 @@ class PurchaseCacheService(
             }
         }
         log.info("[PurchaseCacheService][createList] Created list '{}' id={}", name, id)
+        triggerSync("purchase_lists")
         return PurchaseList(id = id, name = name, createdAt = now, purchaseIds = emptyList())
     }
 
@@ -350,6 +353,8 @@ class PurchaseCacheService(
             conn.prepareStatement("DELETE FROM purchase_lists WHERE id = ?").use { it.setLong(1, listId); it.executeUpdate() }
         }
         log.info("[PurchaseCacheService][deleteList] Deleted list {}", listId)
+        triggerSync("purchase_lists")
+        triggerSync("purchase_list_items")
     }
 
     fun getLists(): List<PurchaseList> {
@@ -414,6 +419,7 @@ class PurchaseCacheService(
                 stmt.executeUpdate()
             }
         }
+        triggerSync("purchase_list_items")
     }
 
     fun removeFromList(listId: Long, purchaseId: Long) {
@@ -424,6 +430,7 @@ class PurchaseCacheService(
                 stmt.executeUpdate()
             }
         }
+        triggerSync("purchase_list_items")
     }
 
     /**
@@ -470,6 +477,7 @@ class PurchaseCacheService(
             }
         }
         log.info("[PurchaseCacheService][addNote] Added note {} for purchase {} by {}", id, purchaseId, author)
+        triggerSync("purchase_notes")
         return PurchaseNote(id = id, purchaseId = purchaseId, author = author, content = content, createdAt = now)
     }
 
@@ -547,6 +555,7 @@ class PurchaseCacheService(
             }
         }
         log.info("[PurchaseCacheService][setReviewStatus] purchase={} status={} by={}", purchaseId, status, operator)
+        triggerSync("purchase_review_status")
         return ReviewStatus(purchaseId = purchaseId, status = status, updatedAt = now, updatedBy = operator)
     }
 
@@ -563,6 +572,18 @@ class PurchaseCacheService(
                 }
                 map
             }
+        }
+    }
+
+    // -----------------------------------------------------------------------
+    // Sync trigger
+    // -----------------------------------------------------------------------
+
+    private fun triggerSync(tableName: String) {
+        try {
+            syncService?.onLocalWrite(tableName)
+        } catch (e: Exception) {
+            log.warn("[PurchaseCacheService][triggerSync] Sync failed for {}: {}", tableName, e.message)
         }
     }
 }
