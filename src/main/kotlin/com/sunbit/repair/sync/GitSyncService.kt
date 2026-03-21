@@ -48,7 +48,7 @@ class GitSyncService(
     // Tables we sync (each gets a .sql file)
     private val syncTables = listOf(
         SyncTable("purchase_lists", "id", listOf("id", "name", "created_at")),
-        SyncTable("purchase_list_items", "list_id,purchase_id", listOf("list_id", "purchase_id")),
+        SyncTable("purchase_list_items", "list_id,purchase_id", listOf("list_id", "purchase_id", "added_at")),
         SyncTable("purchase_notes", "id", listOf("id", "purchase_id", "author", "content", "created_at")),
         SyncTable("purchase_review_status", "purchase_id", listOf("purchase_id", "status", "updated_by", "updated_at")),
     )
