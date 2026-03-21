@@ -30,6 +30,51 @@ if [ -z "$SNOWFLAKE_USER" ]; then
   fi
 fi
 echo "User: $SNOWFLAKE_USER"
+echo ""
+
+# -----------------------------------------------
+# 1b. Snowflake token (authenticate on host for Docker)
+# -----------------------------------------------
+if [ ! -f "$HOME/.sunbit/snowflake_token" ]; then
+  echo "Snowflake SSO requires a browser. Authenticating on your machine first..."
+  echo "(This is a one-time step. Tokens last ~4 hours.)"
+  echo ""
+
+  if ! python3 -c "import snowflake.connector" 2>/dev/null; then
+    echo "Installing snowflake-connector-python..."
+    pip3 install --quiet snowflake-connector-python 2>/dev/null
+  fi
+
+  if python3 -c "import snowflake.connector" 2>/dev/null; then
+    python3 << PYEOF
+import snowflake.connector, os
+conn = snowflake.connector.connect(
+    account='WXA20498.us-west-2.privatelink',
+    user='$SNOWFLAKE_USER',
+    authenticator='externalbrowser',
+    warehouse='DATA_ENG_WH',
+    role='DBT_DEV_ROLE',
+    database='BRONZE',
+)
+token = conn.rest._master_token
+cache_dir = os.path.expanduser('~/.sunbit')
+os.makedirs(cache_dir, exist_ok=True)
+with open(os.path.join(cache_dir, 'snowflake_token'), 'w') as f:
+    f.write(token)
+os.chmod(os.path.join(cache_dir, 'snowflake_token'), 0o600)
+conn.close()
+print("Snowflake: authenticated, token cached")
+PYEOF
+  else
+    echo "WARNING: Could not install snowflake-connector-python."
+    echo "         Snowflake queries will use SSO from Docker (may not work)."
+    echo "         Run 'bash snowflake-auth.sh' later to fix."
+    read -p "Press ENTER to continue..." _
+  fi
+else
+  echo "Snowflake: token cached (use 'bash snowflake-auth.sh' to refresh)"
+fi
+echo ""
 
 # Check SSH keys
 if [ -d "$HOME/.ssh" ] && ls "$HOME/.ssh"/*.pub > /dev/null 2>&1; then
@@ -59,6 +104,7 @@ docker run -d \
   --name repair-tool \
   --restart unless-stopped \
   -p 8090:8090 \
+  -p 8099:8099 \
   -e SNOWFLAKE_USER="$SNOWFLAKE_USER" \
   -e SYNC_ENABLED=true \
   -e SYNC_REPO_URL=git@github.com:sunbit-dev/account-management-service.git \
@@ -67,6 +113,7 @@ docker run -d \
   -e SYNC_LOCAL_PATH=/data/sync \
   -v "$HOME/.ssh:/root/.ssh-host:ro" \
   -v "$HOME/.sunbit:/root/.sunbit" \
+  -v "$HOME/.sunbit/snowflake_cache:/root/.cache/snowflake" \
   --add-host=host.docker.internal:host-gateway \
   --add-host=sunbit-mysql:host-gateway \
   sunbit/arnon-temp:purchase-repair-tool > /dev/null

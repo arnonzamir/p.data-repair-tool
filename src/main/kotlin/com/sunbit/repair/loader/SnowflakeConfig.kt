@@ -8,7 +8,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.jdbc.core.JdbcTemplate
-import java.util.Properties
+import java.io.File
 import javax.sql.DataSource
 
 @Configuration
@@ -30,8 +30,13 @@ class SnowflakeConfig {
         val host = "${props.account}.snowflakecomputing.com"
         val jdbcUrl = "jdbc:snowflake://$host/"
 
-        log.info("[SnowflakeConfig][snowflakeDataSource] Configuring Snowflake: account={} user={} warehouse={} role={} authenticator={}",
-            props.account, props.user, props.warehouse, props.role, props.authenticator)
+        // Check for cached credential file (produced by snowflake-auth.sh)
+        // The JDBC driver reads this automatically when CLIENT_STORE_TEMPORARY_CREDENTIAL=true
+        val credCache = File(System.getProperty("user.home"), ".cache/snowflake/temporary_credential.json")
+        val hasCachedCred = credCache.exists() && credCache.length() > 10
+
+        log.info("[SnowflakeConfig][snowflakeDataSource] Configuring Snowflake: account={} user={} warehouse={} role={} authenticator={} credentialCached={}",
+            props.account, props.user, props.warehouse, props.role, props.authenticator, hasCachedCred)
 
         val hikariConfig = HikariConfig().apply {
             this.jdbcUrl = jdbcUrl
@@ -43,10 +48,12 @@ class SnowflakeConfig {
             addDataSourceProperty("warehouse", props.warehouse)
             addDataSourceProperty("role", props.role)
             addDataSourceProperty("authenticator", props.authenticator)
+
             if (props.password.isNotBlank()) {
                 password = props.password
                 addDataSourceProperty("password", props.password)
             }
+
             addDataSourceProperty("db", "BRONZE")
             // Use JSON result format to avoid Arrow --add-opens requirement on Java 17+
             addDataSourceProperty("JDBC_QUERY_RESULT_FORMAT", "JSON")
@@ -54,12 +61,11 @@ class SnowflakeConfig {
             addDataSourceProperty("CLIENT_SESSION_KEEP_ALIVE", "true")
             addDataSourceProperty("CLIENT_STORE_TEMPORARY_CREDENTIAL", "true")
 
-            // Pool settings: keep one connection alive, reuse it for all queries.
-            // This means the Okta browser login happens exactly once on first query.
+            // Pool settings
             minimumIdle = 0
             maximumPoolSize = 3
-            initializationFailTimeout = -1  // Don't connect at startup (lazy, first query triggers SSO)
-            connectionTimeout = 120_000  // 2 min -- SSO login takes time
+            initializationFailTimeout = -1  // Don't connect at startup (lazy)
+            connectionTimeout = 120_000  // 2 min (SSO login takes time)
             idleTimeout = 600_000        // 10 min
             maxLifetime = 3_600_000      // 1 hour
             poolName = "snowflake-pool"

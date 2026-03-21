@@ -19,13 +19,19 @@ RUN gradle bootJar --no-daemon -x test
 # Stage 3: Runtime
 FROM eclipse-temurin:21-jre-jammy
 
-RUN apt-get update && apt-get install -y git openssh-client && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y git openssh-client socat && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
 COPY --from=backend-build /app/build/libs/*.jar app.jar
 COPY docker-entrypoint.sh /app/docker-entrypoint.sh
-RUN chmod +x /app/docker-entrypoint.sh
+COPY docker-auth-proxy.sh /app/docker-auth-proxy.sh
+RUN chmod +x /app/docker-entrypoint.sh /app/docker-auth-proxy.sh
+
+# Fake browser opener for Snowflake SSO: prints URL to docker logs + starts port proxy
+RUN printf '#!/bin/sh\necho "$1" > /tmp/snowflake-auth-url\n/app/docker-auth-proxy.sh "$1" >> /proc/1/fd/1 2>&1 &\n' > /usr/local/bin/xdg-open && chmod +x /usr/local/bin/xdg-open
+RUN ln -sf /usr/local/bin/xdg-open /usr/local/bin/sensible-browser
+RUN ln -sf /usr/local/bin/xdg-open /usr/local/bin/x-www-browser
 
 # Seed data: pre-loaded cache with lists, snapshots, notes, audit
 COPY seed-data.db /app/seed-data.db
@@ -36,7 +42,7 @@ RUN mkdir -p /data/cache /data/sync /root/.ssh
 # Default SSH config for git (accept all host keys for github)
 RUN echo "Host github.com\n  StrictHostKeyChecking no\n  UserKnownHostsFile /dev/null" > /root/.ssh/config
 
-EXPOSE 8090
+EXPOSE 8090 8099
 
 # JVM flags for Snowflake Arrow compatibility
 ENV JAVA_OPTS="--add-opens=java.base/java.nio=ALL-UNNAMED"

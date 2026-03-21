@@ -21,6 +21,7 @@ docker run -d --name repair-tool --restart unless-stopped \
   -e SNOWFLAKE_USER=your-name@sunbit.com \
   -v ~/.ssh:/root/.ssh-host:ro \
   -v ~/.sunbit:/root/.sunbit \
+  -v ~/.sunbit/snowflake_cache:/root/.cache/snowflake \
   sunbit/arnon-temp:purchase-repair-tool
 ```
 

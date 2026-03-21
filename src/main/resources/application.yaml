@@ -4,6 +4,8 @@ server:
 spring:
   application:
     name: purchase-repair-tool
+  main:
+    allow-bean-definition-overriding: true
 
 # Snowflake connection (Okta SSO -- opens browser on first connect, then caches token)
 snowflake:
@@ -12,6 +14,9 @@ snowflake:
   warehouse: ${SNOWFLAKE_WAREHOUSE:DATA_ENG_WH}
   role: ${SNOWFLAKE_ROLE:DBT_DEV_ROLE}
   authenticator: externalbrowser
+  # Set proxy-url to route Snowflake queries through a host-side proxy (for Docker SSO)
+  # Run snowflake-proxy.py on the host, then set: SNOWFLAKE_PROXY_URL=http://host.docker.internal:8099
+  proxy-url: ${SNOWFLAKE_PROXY_URL:}
 
 # Admin API (purchase-service) per target environment
 admin-api:
