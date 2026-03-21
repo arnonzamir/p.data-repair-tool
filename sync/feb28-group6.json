@@ -190,7 +190,11 @@
       "statusUpdatedAt" : "2026-03-21T16:34:03.576047Z",
       "claimedBy" : "arnon",
       "claimedAt" : "2026-03-21T16:34:00.075056Z",
-      "notes" : [ ]
+      "notes" : [ {
+        "text" : "Investigating ghost payment on 855735515",
+        "by" : "arnon",
+        "at" : "2026-03-21T16:34:07.056156Z"
+      } ]
     }
   }
 }
