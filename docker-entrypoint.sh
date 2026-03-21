@@ -23,19 +23,6 @@ echo "Snowflake user: $SNOWFLAKE_USER"
 # 2. Git auth for sync
 # -----------------------------------------------
 if [ "$SYNC_ENABLED" = "true" ]; then
-  # Fix SSH key permissions: copy to a writable location (bind mounts can't be chmod'd)
-  mkdir -p /root/.ssh-fixed
-  [ -f /root/.ssh/id_rsa ] && cp /root/.ssh/id_rsa /root/.ssh-fixed/id_rsa && chmod 600 /root/.ssh-fixed/id_rsa
-  [ -f /root/.ssh/id_ed25519 ] && cp /root/.ssh/id_ed25519 /root/.ssh-fixed/id_ed25519 && chmod 600 /root/.ssh-fixed/id_ed25519
-  cat > /root/.ssh/config << 'SSHCONF'
-Host github.com
-  StrictHostKeyChecking no
-  UserKnownHostsFile /dev/null
-  IdentityFile /root/.ssh-fixed/id_rsa
-  IdentityFile /root/.ssh-fixed/id_ed25519
-SSHCONF
-  chmod 600 /root/.ssh/config
-
   if [ -n "$GITHUB_TOKEN" ]; then
     # HTTPS mode: configure git credential helper with token
     echo "Git auth:   HTTPS token"
@@ -47,18 +34,18 @@ SSHCONF
       export SYNC_REPO_URL="$HTTPS_URL"
       echo "            Rewrote repo URL to: $SYNC_REPO_URL"
     fi
-  elif [ -f /root/.ssh/id_rsa ] || [ -f /root/.ssh/id_ed25519 ]; then
-    echo "Git auth:   SSH key found"
+  elif [ -n "$SSH_AUTH_SOCK" ] && [ -e "$SSH_AUTH_SOCK" ]; then
+    echo "Git auth:   SSH agent forwarded"
     if ssh -o ConnectTimeout=5 -o StrictHostKeyChecking=no -T git@github.com 2>&1 | grep -q "successfully authenticated"; then
       echo "GitHub SSH: OK"
     else
-      echo "WARNING:    GitHub SSH auth failed. Sync will work read-only (pull) but not push."
+      echo "WARNING:    SSH agent forwarded but GitHub auth failed."
       WARNINGS=$((WARNINGS + 1))
     fi
   else
-    echo "WARNING:    No git credentials. Set GITHUB_TOKEN for HTTPS or mount SSH key."
+    echo "WARNING:    No git credentials. Set GITHUB_TOKEN for HTTPS or ensure SSH agent is running."
     echo "            HTTPS: add GITHUB_TOKEN=ghp_... to .env"
-    echo "            SSH:   mount via -v \$HOME/.ssh/id_ed25519:/root/.ssh/id_ed25519:ro"
+    echo "            SSH:   make sure ssh-agent is running with your key loaded (ssh-add -l)"
     WARNINGS=$((WARNINGS + 1))
   fi
 else
