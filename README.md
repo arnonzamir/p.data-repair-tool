@@ -6,7 +6,7 @@ Investigates, diagnoses, and repairs broken loans in Sunbit's legacy LMS payment
 
 ```bash
 # One-line install:
-curl -sL https://raw.githubusercontent.com/arnonzamir/p.data-repair-tool/main/install.sh | bash
+curl -sL https://raw.githubusercontent.com/sunbit-dev/account-management-service/purchase-repair-sync/repair-tool/install.sh | bash
 
 # Or manually:
 docker pull sunbit/arnon-temp:purchase-repair-tool
