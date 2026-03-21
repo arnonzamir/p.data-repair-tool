@@ -1,0 +1,51 @@
+{
+  "purchases": {
+    "21149505": {
+      "status": "done",
+      "statusUpdatedBy": "arnon.zamir",
+      "statusUpdatedAt": "2026-03-20T20:01:12.436384Z",
+      "claimedBy": null,
+      "claimedAt": null,
+      "notes": [
+        {
+          "text": "another bug",
+          "by": "arnon.zamir",
+          "at": "2026-03-20T16:06:38.515051Z"
+        },
+        {
+          "text": "oct 24th 2025 payment was not recorded. this is a bug that is not related to the incident",
+          "by": "arnon.zamir",
+          "at": "2026-03-20T16:07:36.951489Z"
+        }
+      ]
+    },
+    "21180126": {
+      "status": "done",
+      "statusUpdatedBy": "arnon.zamir",
+      "statusUpdatedAt": "2026-03-20T20:01:18.087332Z",
+      "claimedBy": null,
+      "claimedAt": null,
+      "notes": [
+        {
+          "text": "unrelated bug \nThe problem originates on 2025-11-19 \u2014 the date of the refund (CT #6, charge_time 2025-11-19T10:34:34).\n\nThat's when the PAYMENT_REFUND (type 13) loan_transaction recorded principal_balance = 942.99 instead of the expected 880.91. Every subsequent charge transaction's balance is ~$62 too high from that point forward.",
+          "by": "arnon.zamir",
+          "at": "2026-03-20T16:13:20.600557Z"
+        }
+      ]
+    },
+    "21993161": {
+      "status": "done",
+      "statusUpdatedBy": "arnon.zamir",
+      "statusUpdatedAt": "2026-03-20T20:01:24.048409Z",
+      "claimedBy": null,
+      "claimedAt": null,
+      "notes": [
+        {
+          "text": "suspected other issue, not related to the incident",
+          "by": "arnon.zamir",
+          "at": "2026-03-20T19:21:08.616631Z"
+        }
+      ]
+    }
+  }
+}

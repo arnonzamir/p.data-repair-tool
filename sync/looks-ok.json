@@ -1,0 +1,65 @@
+{
+  "purchases": {
+    "21404596": {
+      "status": "done",
+      "statusUpdatedBy": "arnon.zamir",
+      "statusUpdatedAt": "2026-03-20T20:00:52.435292Z",
+      "claimedBy": null,
+      "claimedAt": null,
+      "notes": [
+        {
+          "text": "unrelated, looks ok",
+          "by": "arnon.zamir",
+          "at": "2026-03-20T16:18:23.454883Z"
+        },
+        {
+          "text": "a different-issue, suspected fraud",
+          "by": "arnon.zamir",
+          "at": "2026-03-20T19:15:29.351050Z"
+        }
+      ]
+    },
+    "21938559": {
+      "status": "done",
+      "statusUpdatedBy": "arnon.zamir",
+      "statusUpdatedAt": "2026-03-20T20:01:02.611549Z",
+      "claimedBy": null,
+      "claimedAt": null,
+      "notes": [
+        {
+          "text": "strange but unrelated to the incident",
+          "by": "arnon.zamir",
+          "at": "2026-03-20T19:18:18.741015Z"
+        }
+      ]
+    },
+    "22548172": {
+      "status": "done",
+      "statusUpdatedBy": "arnon.zamir",
+      "statusUpdatedAt": "2026-03-20T20:02:21.746449Z",
+      "claimedBy": null,
+      "claimedAt": null,
+      "notes": [
+        {
+          "text": "unrelated",
+          "by": "arnon.zamir",
+          "at": "2026-03-20T20:02:33.072654Z"
+        }
+      ]
+    },
+    "23600364": {
+      "status": "done",
+      "statusUpdatedBy": "arnon.zamir",
+      "statusUpdatedAt": "2026-03-20T20:28:23.862967Z",
+      "claimedBy": null,
+      "claimedAt": null,
+      "notes": [
+        {
+          "text": "looks ok",
+          "by": "arnon.zamir",
+          "at": "2026-03-20T20:28:33.007927Z"
+        }
+      ]
+    }
+  }
+}
