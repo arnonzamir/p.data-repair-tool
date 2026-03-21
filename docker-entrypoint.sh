@@ -76,12 +76,16 @@ else
 fi
 
 # -----------------------------------------------
-# 5. Check data directory
+# 5. Check data directory and seed if needed
 # -----------------------------------------------
 mkdir -p /root/.sunbit
 if [ -f /root/.sunbit/purchase-repair-cache.db ]; then
   CACHE_SIZE=$(du -h /root/.sunbit/purchase-repair-cache.db | cut -f1)
   echo "Cache DB:   $CACHE_SIZE (existing data found)"
+elif [ -f /app/seed-data.db ]; then
+  cp /app/seed-data.db /root/.sunbit/purchase-repair-cache.db
+  CACHE_SIZE=$(du -h /root/.sunbit/purchase-repair-cache.db | cut -f1)
+  echo "Cache DB:   $CACHE_SIZE (seeded from built-in data)"
 else
   echo "Cache DB:   empty (will be created on first use)"
 fi

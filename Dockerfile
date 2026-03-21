@@ -27,6 +27,9 @@ COPY --from=backend-build /app/build/libs/*.jar app.jar
 COPY docker-entrypoint.sh /app/docker-entrypoint.sh
 RUN chmod +x /app/docker-entrypoint.sh
 
+# Seed data: pre-loaded cache with lists, snapshots, notes, audit
+COPY seed-data.db /app/seed-data.db
+
 # Create directories for persistent data
 RUN mkdir -p /data/cache /data/sync /root/.ssh
 
