@@ -135,6 +135,7 @@ class PurchaseAnalyzer(
                     enabled = true,
                     executionTimeMs = elapsed,
                     findingCount = findings.size,
+                    detailedDescription = rule.detailedDescription,
                 ),
                 findings,
             )
@@ -156,6 +157,7 @@ class PurchaseAnalyzer(
                     executionTimeMs = elapsed,
                     findingCount = 0,
                     error = ex.message,
+                    detailedDescription = rule.detailedDescription,
                 ),
                 emptyList(),
             )

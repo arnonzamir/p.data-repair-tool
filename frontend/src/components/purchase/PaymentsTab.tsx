@@ -1,11 +1,12 @@
 import React, { useMemo } from 'react';
-import type { PurchaseSnapshot, ChargeTransaction, Payment, PaymentAction } from '../../types/domain';
+import type { PurchaseSnapshot, ChargeTransaction, Payment, PaymentAction, Finding } from '../../types/domain';
 import PaymentsTable from './PaymentsTable';
 import RelatedCommsTooltip, { findRelatedComms } from '../common/RelatedCommsTooltip';
 
 interface PaymentsTabProps {
   snapshot: PurchaseSnapshot;
   highlightIds: number[];
+  findings?: Finding[];
   onNavigateTab?: (tab: string, itemId?: number | string) => void;
 }
 
@@ -174,7 +175,7 @@ function DisputedPaymentsTable({ payments }: { payments: Payment[] }) {
   );
 }
 
-const PaymentsTab: React.FC<PaymentsTabProps> = ({ snapshot, highlightIds, onNavigateTab }) => {
+const PaymentsTab: React.FC<PaymentsTabProps> = ({ snapshot, highlightIds, findings, onNavigateTab }) => {
   const handleCommsNavigate = (tab: 'notifications' | 'tickets', itemId: number | string) => {
     if (onNavigateTab) onNavigateTab(tab, itemId);
   };
@@ -256,6 +257,7 @@ const PaymentsTab: React.FC<PaymentsTabProps> = ({ snapshot, highlightIds, onNav
         paymentAttempts={snapshot.paymentAttempts}
         chargeTransactions={snapshot.chargeTransactions}
         highlightIds={highlightIds}
+        findings={findings}
         notifications={snapshot.notifications}
         tickets={snapshot.supportTickets}
         onNavigateTab={onNavigateTab}

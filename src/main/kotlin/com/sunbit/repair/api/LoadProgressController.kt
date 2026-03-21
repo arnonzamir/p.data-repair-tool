@@ -47,6 +47,9 @@ class LoadProgressController(
         LoadStep("Charge service statuses", "Q-CSS"),
         LoadStep("Loan transactions", "Q-LT"),
         LoadStep("Building unified charge view", "UCE"),
+        LoadStep("Purchase properties", "Q-PP"),
+        LoadStep("Disbursals", "Q-D1"),
+        LoadStep("Offer disbursals", "Q-OD"),
         LoadStep("Cross-schema reconciliation", "Q-X1"),
         LoadStep("Analysis", "rules"),
     )
@@ -181,8 +184,32 @@ class LoadProgressController(
                 )
                 progress("Building unified charge view", "complete", "${unifiedChargeEvents.size} events")
 
-                // Step 15: Cross-schema
+                // Step 15: Purchase properties
                 currentStep = 15
+                progress("Purchase properties", "running")
+                val purchaseProperties = snowflakeLoader.loadPurchaseProperties(purchaseId)
+                progress("Purchase properties", "complete", "${purchaseProperties.size} properties")
+
+                // Step 16: Disbursals
+                currentStep = 16
+                progress("Disbursals", "running")
+                val disbursals = snowflakeLoader.loadDisbursals(purchaseId)
+                val disbursalDiffs = if (disbursals.isNotEmpty()) {
+                    snowflakeLoader.loadDisbursalDiffs(purchaseId)
+                } else emptyList()
+                progress("Disbursals", "complete", "${disbursals.size} disbursals, ${disbursalDiffs.size} diffs")
+
+                // Step 17: Offer disbursals
+                currentStep = 17
+                progress("Offer disbursals", "running")
+                val offerDisbursals = snowflakeLoader.loadOfferDisbursals(purchaseId)
+                val offerDisbursalMapping = if (offerDisbursals.isNotEmpty()) {
+                    snowflakeLoader.loadOfferDisbursalMapping(purchaseId)
+                } else emptyList()
+                progress("Offer disbursals", "complete", "${offerDisbursals.size} planned, ${offerDisbursalMapping.size} mappings")
+
+                // Step 18: Cross-schema
+                currentStep = 18
                 progress("Cross-schema reconciliation", "running")
                 val crossSchema = snowflakeLoader.loadCrossSchemaReconciliation(purchaseId)
                 progress("Cross-schema reconciliation", "complete")
@@ -209,14 +236,19 @@ class LoadProgressController(
                     chargeServiceStatuses = chargeServiceStatuses,
                     loanTransactions = loanTransactions,
                     unifiedChargeEvents = unifiedChargeEvents,
+                    disbursals = disbursals,
+                    disbursalDiffs = disbursalDiffs,
+                    offerDisbursals = offerDisbursals,
+                    offerDisbursalMapping = offerDisbursalMapping,
+                    purchaseProperties = purchaseProperties,
                 )
 
                 // Cache the snapshot
                 val cachedAt = Instant.now()
                 cacheService.writeSnapshotToCache(purchaseId, snapshot, cachedAt)
 
-                // Step 16: Analysis
-                currentStep = 16
+                // Step 19: Analysis
+                currentStep = 19
                 progress("Analysis", "running", "Running ${steps.size - 1} rules")
                 val analysis = analyzer.analyze(snapshot)
                 progress("Analysis", "complete", "${analysis.findings.size} findings")

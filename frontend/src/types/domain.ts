@@ -24,6 +24,8 @@ export interface PurchaseSnapshot {
   unifiedChargeEvents?: UnifiedChargeEvent[];
   disbursals?: Disbursal[];
   disbursalDiffs?: DisbursalDiff[];
+  offerDisbursals?: OfferDisbursal[];
+  offerDisbursalMapping?: OfferDisbursalMapping[];
   purchaseProperties?: Record<string, string>;
   isAutopayPaused?: boolean;
   isMultiDisbursal?: boolean;
@@ -268,6 +270,18 @@ export interface DisbursalDiff {
   disbursalDate?: string;
 }
 
+export interface OfferDisbursal {
+  id: number;
+  cycle: number;
+  percent: number;
+  downPaymentPercent?: number;
+}
+
+export interface OfferDisbursalMapping {
+  offerDisbursalId: number;
+  actualDisbursalId: number;
+}
+
 export type MatchQuality = 'EXACT' | 'AMOUNT_MATCH' | 'UNMATCHED';
 
 export interface UnifiedChargeEvent {
@@ -322,6 +336,7 @@ export interface RuleExecutionResult {
   executionTimeMs: number;
   findingCount: number;
   error?: string;
+  detailedDescription?: string;
 }
 
 export interface ReplicationRecord {
@@ -378,6 +393,7 @@ export interface RuleInfo {
   ruleId: string;
   ruleName: string;
   description: string;
+  detailedDescription?: string;
   enabled: boolean;
 }
 

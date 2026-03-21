@@ -41,6 +41,10 @@ class PurchaseLoaderService(
         val disbursalDiffs = if (disbursals.isNotEmpty()) {
             snowflakeLoader.loadDisbursalDiffs(purchaseId)
         } else emptyList()
+        val offerDisbursals = snowflakeLoader.loadOfferDisbursals(purchaseId)
+        val offerDisbursalMapping = if (offerDisbursals.isNotEmpty()) {
+            snowflakeLoader.loadOfferDisbursalMapping(purchaseId)
+        } else emptyList()
         val crossSchema = snowflakeLoader.loadCrossSchemaReconciliation(purchaseId)
 
         val unifiedChargeEvents = UnifiedChargeEventBuilder.build(
@@ -72,6 +76,8 @@ class PurchaseLoaderService(
             unifiedChargeEvents = unifiedChargeEvents,
             disbursals = disbursals,
             disbursalDiffs = disbursalDiffs,
+            offerDisbursals = offerDisbursals,
+            offerDisbursalMapping = offerDisbursalMapping,
             purchaseProperties = purchaseProperties,
         )
 

@@ -331,6 +331,58 @@ class SnowflakeLoader(
         return props
     }
 
+    fun loadOriginalPaymentAmount(paymentId: Long): java.math.BigDecimal? {
+        log.info("[SnowflakeLoader][loadOriginalPaymentAmount] Loading original amount for payment {} from audit trail", paymentId)
+        return try {
+            jdbc.queryForObject("""
+                SELECT aud.AMOUNT
+                FROM BRONZE.PURCHASE.PAYMENTS_AUD aud
+                WHERE aud.ID = ? AND aud.REVTYPE = 0
+            """.trimIndent(), { rs, _ -> rs.bd("amount") }, paymentId)
+        } catch (e: Exception) {
+            log.warn("[SnowflakeLoader][loadOriginalPaymentAmount] No audit record found for payment {}: {}", paymentId, e.message)
+            null
+        }
+    }
+
+    fun loadOfferDisbursals(purchaseId: Long): List<com.sunbit.repair.domain.OfferDisbursal> {
+        log.info("[SnowflakeLoader][loadOfferDisbursals] Loading offer disbursals for purchase {}", purchaseId)
+        val results = jdbc.query("""
+            SELECT od.ID, od.CYCLE, od.PERCENT, od.DOWN_PAYMENT_PERCENT
+            FROM BRONZE.PURCHASE.OFFER_DISBURSALS od
+            JOIN BRONZE.PURCHASE.PURCHASES_ANALYTICS_OFFERS pao ON od.PURCHASE_ANALYTICS_OFFER_ID = pao.ID
+            WHERE pao.PURCHASE_ID = ?
+            ORDER BY od.CYCLE
+        """.trimIndent(), { rs, _ ->
+            com.sunbit.repair.domain.OfferDisbursal(
+                id = rs.long_("id"),
+                cycle = rs.int_("cycle"),
+                percent = rs.bd("percent"),
+                downPaymentPercent = rs.getBigDecimalOrNull("down_payment_percent"),
+            )
+        }, purchaseId)
+        log.info("[SnowflakeLoader][loadOfferDisbursals] Loaded {} offer disbursals for purchase {}", results.size, purchaseId)
+        return results
+    }
+
+    fun loadOfferDisbursalMapping(purchaseId: Long): List<com.sunbit.repair.domain.OfferDisbursalMapping> {
+        log.info("[SnowflakeLoader][loadOfferDisbursalMapping] Loading offer-to-actual mapping for purchase {}", purchaseId)
+        val results = jdbc.query("""
+            SELECT m.OFFER_DISBURSAL_ID, m.AMOUNT_FINANCED_DISBURSAL_ID
+            FROM BRONZE.PURCHASE.AMOUNT_FINANCED_DISBURSALS_OFFER_DISBURSALS_MAPPING m
+            JOIN BRONZE.PURCHASE.AMOUNT_FINANCED_DISBURSALS afd ON m.AMOUNT_FINANCED_DISBURSAL_ID = afd.ID
+            JOIN BRONZE.PURCHASE.PAYMENTPLANS pp ON afd.PAYMENT_PLAN_ID = pp.ID
+            WHERE pp.PURCHASE_ID = ?
+        """.trimIndent(), { rs, _ ->
+            com.sunbit.repair.domain.OfferDisbursalMapping(
+                offerDisbursalId = rs.long_("offer_disbursal_id"),
+                actualDisbursalId = rs.long_("amount_financed_disbursal_id"),
+            )
+        }, purchaseId)
+        log.info("[SnowflakeLoader][loadOfferDisbursalMapping] Loaded {} mappings for purchase {}", results.size, purchaseId)
+        return results
+    }
+
     // =======================================================================
     // Row mappers
     // =======================================================================

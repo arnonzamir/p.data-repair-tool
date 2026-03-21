@@ -26,7 +26,9 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
     const body = await res.text();
     throw new Error(`HTTP ${res.status}: ${body}`);
   }
-  return res.json();
+  const text = await res.text();
+  if (!text) return undefined as any;
+  return JSON.parse(text);
 }
 
 // Config
@@ -196,5 +198,111 @@ export const getReviewStatuses = (purchaseIds: number[]) =>
   });
 
 // Audit
-export const getRecentAudit = (limit = 50) =>
-  apiFetch<AuditEntry[]>(`/api/v1/audit/recent?limit=${limit}`);
+export const getRecentAudit = (limit = 50, offset = 0) =>
+  apiFetch<AuditEntry[]>(`/api/v1/audit/recent?limit=${limit}&offset=${offset}`);
+
+// Manipulators
+export interface ManipulatorInfo {
+  id: string;
+  name: string;
+  description: string;
+  detailedDescription?: string;
+  category: string;
+  requiredParams: { name: string; type: string; required: boolean; description: string; defaultValue?: any; enumValues?: string[] }[];
+  enabled: boolean;
+}
+
+export interface ApplicableManipulator {
+  manipulatorId: string;
+  name: string;
+  category: string;
+  applicability: { canApply: boolean; reason: string; suggestedParams: Record<string, any> };
+}
+
+export interface ManipulatorPreview {
+  manipulatorId: string;
+  purchaseId: number;
+  supported: boolean;
+  description: string;
+  steps: { order: number; action: string; description: string; affectedPaymentIds: number[] }[];
+  warnings: string[];
+}
+
+export interface ManipulatorRunResult {
+  purchaseId: number;
+  manipulatorId: string;
+  applicability: { canApply: boolean; reason: string; suggestedParams: Record<string, any> };
+  execution?: {
+    manipulatorId: string;
+    purchaseId: number;
+    executedAt: string;
+    success: boolean;
+    stepsExecuted: { order: number; action: string; success: boolean; error?: string }[];
+    error?: string;
+  };
+  verification?: { passed: boolean; reason: string; resolvedFindings: string[]; remainingFindings: any[] };
+  success: boolean;
+  verified: boolean;
+}
+
+export const listManipulators = () =>
+  apiFetch<ManipulatorInfo[]>('/api/v1/manipulators');
+
+export const getApplicableManipulators = (purchaseId: number) =>
+  apiFetch<ApplicableManipulator[]>(`/api/v1/manipulators/${purchaseId}/applicable`);
+
+export const previewManipulator = (purchaseId: number, manipulatorId: string, params: Record<string, any> = {}) =>
+  apiFetch<ManipulatorPreview>(`/api/v1/manipulators/${purchaseId}/preview`, {
+    method: 'POST',
+    body: JSON.stringify({ manipulatorId, params }),
+  });
+
+export const enableManipulator = (manipulatorId: string) =>
+  apiFetch<any>(`/api/v1/manipulators/toggle/${manipulatorId}/enable`, { method: 'PUT' });
+
+export const disableManipulator = (manipulatorId: string) =>
+  apiFetch<any>(`/api/v1/manipulators/toggle/${manipulatorId}/disable`, { method: 'PUT' });
+
+// Sync (git-based collaborative state, purchase-level)
+export interface SyncPurchaseState {
+  status?: string;
+  statusUpdatedBy?: string;
+  statusUpdatedAt?: string;
+  claimedBy?: string;
+  claimedAt?: string;
+  notes: { text: string; by: string; at: string }[];
+}
+
+export const getSyncPurchaseStates = (purchaseIds: number[]) =>
+  apiFetch<Record<number, SyncPurchaseState>>('/api/v1/sync/purchases/batch', {
+    method: 'POST',
+    body: JSON.stringify({ purchaseIds }),
+  });
+
+export const updateSyncStatus = (purchaseId: number, status: string) =>
+  apiFetch<any>(`/api/v1/sync/purchases/${purchaseId}/status`, {
+    method: 'PUT',
+    body: JSON.stringify({ status }),
+  });
+
+export const claimSyncPurchase = (purchaseId: number) =>
+  apiFetch<any>(`/api/v1/sync/purchases/${purchaseId}/claim`, { method: 'PUT' });
+
+export const unclaimSyncPurchase = (purchaseId: number) =>
+  apiFetch<any>(`/api/v1/sync/purchases/${purchaseId}/claim`, { method: 'DELETE' });
+
+export const addSyncNote = (purchaseId: number, text: string) =>
+  apiFetch<any>(`/api/v1/sync/purchases/${purchaseId}/notes`, {
+    method: 'POST',
+    body: JSON.stringify({ text }),
+  });
+
+export const pullSync = () =>
+  apiFetch<any>('/api/v1/sync/pull', { method: 'POST' });
+
+export const executeManipulator = (purchaseId: number, manipulatorId: string, params: Record<string, any> = {}, target: string = 'LOCAL') =>
+  apiFetch<ManipulatorRunResult>(`/api/v1/manipulators/${purchaseId}/execute`, {
+    method: 'POST',
+    body: JSON.stringify({ manipulatorId, params }),
+    headers: { 'X-Target': target },
+  });

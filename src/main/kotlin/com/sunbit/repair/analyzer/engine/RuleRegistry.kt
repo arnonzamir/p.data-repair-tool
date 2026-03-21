@@ -69,6 +69,7 @@ class RuleRegistry(
                 id = rule.ruleId,
                 name = rule.ruleName,
                 description = rule.description,
+                detailedDescription = rule.detailedDescription,
                 enabled = enabledState[rule.ruleId] ?: false,
             )
         }.sortedBy { it.id }
@@ -84,5 +85,6 @@ data class RuleInfo(
     val id: String,
     val name: String,
     val description: String,
+    val detailedDescription: String,
     val enabled: Boolean,
 )

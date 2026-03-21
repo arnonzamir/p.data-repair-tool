@@ -21,6 +21,11 @@ class GhostPaymentRule : AnalysisRule {
     override val ruleId = "ghost-payment"
     override val ruleName = "Ghost Payment Detection"
     override val description = "Detects active payments whose direct parent is also active (reactivation bug)"
+    override val detailedDescription = """
+        When a loan payment is modified (e.g., date change, amount change, rebalance), the system creates a new 'child' payment and deactivates the old 'parent'. This rule checks for cases where the parent was NOT deactivated, leaving both parent and child active. This typically happens when a database transaction partially fails during a mutation retry. The risk is that the automatic charge system sees two active payments for the same installment and charges the customer twice.
+
+        Detection: For each active payment that has a directParentId, check if the parent payment is also active.
+    """.trimIndent()
 
     override fun analyze(snapshot: PurchaseSnapshot): List<Finding> {
         log.debug("[GhostPaymentRule][analyze] Checking purchaseId={}", snapshot.purchaseId)
@@ -47,7 +52,7 @@ class GhostPaymentRule : AnalysisRule {
             val suggestedAction = if (childHasCharge) {
                 SuggestedRepair(
                     action = RepairActionType.UNPAY_WITH_REFUND,
-                    description = "Ghost payment has been charged -- unpay with refund on the ghost parent",
+                    description = "Ghost payment has been charged. Unpay with refund on the ghost parent",
                     parameters = mapOf(
                         "purchaseId" to snapshot.purchaseId,
                         "paymentId" to parent.id,
@@ -57,7 +62,7 @@ class GhostPaymentRule : AnalysisRule {
             } else {
                 SuggestedRepair(
                     action = RepairActionType.UNPAY_WITHOUT_REFUND,
-                    description = "Ghost parent has no money movement -- unpay without refund",
+                    description = "Ghost parent has no money movement. Unpay without refund",
                     parameters = mapOf(
                         "purchaseId" to snapshot.purchaseId,
                         "paymentId" to parent.id,
@@ -72,8 +77,13 @@ class GhostPaymentRule : AnalysisRule {
                     ruleName = ruleName,
                     severity = Severity.CRITICAL,
                     affectedPaymentIds = listOf(parent.id, payment.id),
-                    description = "Active payment ${payment.id} has active parent ${parent.id}. " +
-                        "Both are active, indicating a ghost from a failed mutation retry.",
+                    description = "Active payment ${payment.id} (amount=${payment.amount}, dueDate=${payment.dueDate}) " +
+                        "has active parent ${parent.id} (amount=${parent.amount}, dueDate=${parent.dueDate}). " +
+                        "When a loan payment is modified (e.g., date change, rebalance), the system creates a new 'child' payment " +
+                        "and deactivates the old 'parent'. Both parent and child are still active here, which means the customer " +
+                        "has two payments for the same installment slot and may be charged twice. " +
+                        "This typically happens when a mutation operation (payNow, changeAmount, etc.) partially fails and retries, " +
+                        "reactivating the original payment while the child already exists.",
                     evidence = mapOf(
                         "childPaymentId" to payment.id,
                         "parentPaymentId" to parent.id,

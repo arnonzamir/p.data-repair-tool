@@ -123,12 +123,13 @@ class AuditService(
         }
     }
 
-    fun getRecent(limit: Int = 50): List<AuditEntry> {
+    fun getRecent(limit: Int = 50, offset: Int = 0): List<AuditEntry> {
         return getConnection().use { conn ->
             conn.prepareStatement(
-                "SELECT id, timestamp, operator, purchase_id, action, input_json, output_json, duration_ms FROM audit_log ORDER BY timestamp DESC LIMIT ?"
+                "SELECT id, timestamp, operator, purchase_id, action, input_json, output_json, duration_ms FROM audit_log ORDER BY timestamp DESC LIMIT ? OFFSET ?"
             ).use { stmt ->
                 stmt.setInt(1, limit)
+                stmt.setInt(2, offset)
                 mapResults(stmt.executeQuery())
             }
         }

@@ -22,6 +22,11 @@ class CrossSchemaDesyncRule : AnalysisRule {
     override val ruleId = "cross-schema-desync"
     override val ruleName = "Cross-Schema Desynchronization"
     override val description = "Detects mismatches between processor and purchase-service charge records using row-level matching"
+    override val detailedDescription = """
+        Sunbit has two systems that track charges: the purchase-service (charge_transactions table) and the charge-service (payment_attempts table, introduced later). This rule uses the unified charge event view to compare them row-by-row. A processor charge with no purchase-service record means money was taken from the customer but not accounted for in the loan. A purchase-service record with no processor match is normal for charges that predate the charge-service migration. Amount mismatches between matched records indicate a recording error.
+
+        Detection: Iterates unified charge events looking for UNMATCHED entries (processor-only or purchase-only) and amount discrepancies on matched entries.
+    """.trimIndent()
 
     /** Charge transaction types that represent actual money collection (not internal adjustments). */
     private val MONEY_MOVEMENT_CT_TYPES = setOf(0, 1, 2) // SCHEDULED, UNSCHEDULED, DOWN_PAYMENT
@@ -47,7 +52,11 @@ class CrossSchemaDesyncRule : AnalysisRule {
                 severity = Severity.CRITICAL,
                 affectedPaymentIds = processorOnlySuccesses.mapNotNull { it.paymentId },
                 description = "${processorOnlySuccesses.size} successful processor charge(s) have no matching " +
-                    "purchase-service charge_transaction. Money was collected but not accounted for.",
+                    "purchase-service charge_transaction. This means money was taken from the customer's card " +
+                    "but the loan system (purchase-service) does not know about it. The payment processor (charge-service) " +
+                    "successfully charged the customer, but no corresponding charge_transaction was created in the " +
+                    "purchase schema. This typically happens when the charge-service callback fails or the " +
+                    "purchase-service crashes after the charge succeeds but before recording it.",
                 evidence = mapOf(
                     "unmatchedProcessorCharges" to processorOnlySuccesses.map { e ->
                         mapOf(
@@ -105,7 +114,11 @@ class CrossSchemaDesyncRule : AnalysisRule {
                 severity = Severity.HIGH,
                 affectedPaymentIds = amountMismatches.mapNotNull { it.paymentId },
                 description = "${amountMismatches.size} matched charge(s) have amount discrepancies between " +
-                    "purchase-service and processor records.",
+                    "purchase-service and processor records. The loan system recorded a different amount than what " +
+                    "the payment processor actually charged to the customer's card. This means the financial records " +
+                    "are inconsistent: the customer was charged one amount but the loan schedule reflects another. " +
+                    "Common causes include a payment amount being modified after the charge was initiated, or a partial " +
+                    "charge that was recorded as the full amount.",
                 evidence = mapOf(
                     "amountMismatches" to amountMismatches.map { e ->
                         mapOf(

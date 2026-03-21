@@ -23,6 +23,11 @@ class RapidDuplicateChargesRule : AnalysisRule {
     override val ruleId = "rapid-duplicate-charges"
     override val ruleName = "Rapid Duplicate Charges Detection"
     override val description = "Finds active paid payments with similar amounts charged within a short time window"
+    override val detailedDescription = """
+        This rule detects suspicious patterns where two payments with nearly identical amounts (within 5% of each other) were both charged within 14 days. This pattern often indicates a system retry bug or operator error that created a duplicate charge. Unlike the duplicate-charge rule which matches on exact due dates, this catches duplicates that may have been assigned slightly different dates.
+
+        Detection: Compares all pairs of active paid payments. Flags pairs where the amounts differ by less than 5% and the paidOffDates are within 14 days of each other.
+    """.trimIndent()
 
     companion object {
         private const val SIMILARITY_THRESHOLD_PERCENT = 5.0
@@ -74,7 +79,12 @@ class RapidDuplicateChargesRule : AnalysisRule {
                         affectedPaymentIds = listOf(a.id, b.id),
                         description = "Payments ${a.id} and ${b.id} have similar amounts " +
                             "(${a.amount} vs ${b.amount}, ${String.format("%.2f", similarityPct)}% difference) " +
-                            "and were paid $daysBetween days apart. This may indicate a duplicate charge.",
+                            "and were paid $daysBetween days apart. " +
+                            "Two payments with nearly identical amounts were charged within $daysBetween days of each other. " +
+                            "This pattern often indicates a system retry that created a duplicate charge. For example, " +
+                            "the charge job ran, a transient error occurred after the charge succeeded, and a retry created " +
+                            "and charged a second payment for the same obligation. If this is a genuine duplicate, the " +
+                            "customer was overcharged and may need a refund.",
                         evidence = mapOf(
                             "paymentIdA" to a.id,
                             "paymentIdB" to b.id,

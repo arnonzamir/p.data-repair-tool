@@ -1,35 +1,58 @@
 package com.sunbit.repair.loader
 
 import org.slf4j.LoggerFactory
-import org.springframework.beans.factory.annotation.Value
+import org.springframework.boot.context.properties.ConfigurationProperties
 import org.springframework.http.MediaType
 import org.springframework.stereotype.Service
 import org.springframework.web.reactive.function.client.WebClient
 import java.math.BigDecimal
 import java.time.Duration
+import java.util.concurrent.ConcurrentHashMap
+
+@ConfigurationProperties(prefix = "admin-api")
+data class AdminApiProperties(
+    val timeoutSeconds: Long = 30,
+    val targets: Map<String, AdminApiTarget> = emptyMap(),
+)
+
+data class AdminApiTarget(
+    val baseUrl: String,
+)
 
 @Service
 class AdminApiClient(
-    @Value("\${admin-api.base-url}") private val baseUrl: String,
-    @Value("\${admin-api.timeout-seconds}") private val timeoutSeconds: Long,
+    private val properties: AdminApiProperties,
 ) {
 
     private val log = LoggerFactory.getLogger(AdminApiClient::class.java)
+    private val timeout: Duration = Duration.ofSeconds(properties.timeoutSeconds)
 
-    private val webClient: WebClient = WebClient.builder()
-        .baseUrl(baseUrl)
-        .defaultHeader("Content-Type", MediaType.APPLICATION_JSON_VALUE)
-        .build()
+    private val clients = ConcurrentHashMap<String, WebClient>()
 
-    private val timeout: Duration = Duration.ofSeconds(timeoutSeconds)
+    private fun clientFor(target: String): WebClient {
+        return clients.computeIfAbsent(target.uppercase()) { key ->
+            val apiTarget = properties.targets[key.lowercase()]
+                ?: throw IllegalArgumentException(
+                    "[AdminApiClient] Unknown target '$key'. Known targets: ${properties.targets.keys}"
+                )
+            log.info("[AdminApiClient][clientFor] Creating WebClient for target {} -> {}", key, apiTarget.baseUrl)
+            WebClient.builder()
+                .baseUrl(apiTarget.baseUrl)
+                .defaultHeader("Content-Type", MediaType.APPLICATION_JSON_VALUE)
+                .build()
+        }
+    }
+
+    /** Default client for backwards compatibility (uses LOCAL). */
+    private fun defaultClient(): WebClient = clientFor("LOCAL")
 
     // -----------------------------------------------------------------------
     // Read
     // -----------------------------------------------------------------------
 
-    fun getPurchaseDetails(purchaseId: Long): Map<String, Any> {
-        log.info("[AdminApiClient][getPurchaseDetails] Fetching purchase details for {}", purchaseId)
-        return webClient.get()
+    fun getPurchaseDetails(purchaseId: Long, target: String = "LOCAL"): Map<String, Any> {
+        log.info("[AdminApiClient][getPurchaseDetails] Fetching purchase details for {} from {}", purchaseId, target)
+        return clientFor(target).get()
             .uri("/api/v1/admin/purchases/{id}", purchaseId)
             .retrieve()
             .bodyToMono(MAP_TYPE)
@@ -41,9 +64,9 @@ class AdminApiClient(
     // Preview / calculation endpoints
     // -----------------------------------------------------------------------
 
-    fun previewAmountChange(purchaseId: Long, newAmount: BigDecimal): Map<String, Any> {
-        log.info("[AdminApiClient][previewAmountChange] Previewing amount change for purchase {} to {}", purchaseId, newAmount)
-        return webClient.put()
+    fun previewAmountChange(purchaseId: Long, newAmount: BigDecimal, target: String = "LOCAL"): Map<String, Any> {
+        log.info("[AdminApiClient][previewAmountChange] Previewing amount change for purchase {} to {} on {}", purchaseId, newAmount, target)
+        return clientFor(target).put()
             .uri("/api/v1/admin/purchases/{id}/amount-calculation", purchaseId)
             .bodyValue(mapOf("amount" to newAmount))
             .retrieve()
@@ -56,9 +79,9 @@ class AdminApiClient(
     // Unpay
     // -----------------------------------------------------------------------
 
-    fun unpayWithRefund(purchaseId: Long, paymentId: Long): Map<String, Any> {
-        log.info("[AdminApiClient][unpayWithRefund] Unpaying payment {} on purchase {} with refund", paymentId, purchaseId)
-        return webClient.put()
+    fun unpayWithRefund(purchaseId: Long, paymentId: Long, target: String = "LOCAL"): Map<String, Any> {
+        log.info("[AdminApiClient][unpayWithRefund] Unpaying payment {} on purchase {} with refund on {}", paymentId, purchaseId, target)
+        return clientFor(target).put()
             .uri { builder ->
                 builder.path("/admin/purchases/{id}/payments/set-as-unpaid")
                     .queryParam("paymentId", paymentId)
@@ -71,9 +94,9 @@ class AdminApiClient(
             ?: emptyMap()
     }
 
-    fun unpayWithoutRefund(purchaseId: Long, paymentId: Long): Map<String, Any> {
-        log.info("[AdminApiClient][unpayWithoutRefund] Unpaying payment {} on purchase {} without refund", paymentId, purchaseId)
-        return webClient.put()
+    fun unpayWithoutRefund(purchaseId: Long, paymentId: Long, target: String = "LOCAL"): Map<String, Any> {
+        log.info("[AdminApiClient][unpayWithoutRefund] Unpaying payment {} on purchase {} without refund on {}", paymentId, purchaseId, target)
+        return clientFor(target).put()
             .uri { builder ->
                 builder.path("/admin/purchases/{id}/payments/set-as-unpaid")
                     .queryParam("paymentId", paymentId)
@@ -90,9 +113,9 @@ class AdminApiClient(
     // Amount change
     // -----------------------------------------------------------------------
 
-    fun changeAmount(purchaseId: Long, newAmount: BigDecimal): Map<String, Any> {
-        log.info("[AdminApiClient][changeAmount] Changing amount for purchase {} to {}", purchaseId, newAmount)
-        return webClient.put()
+    fun changeAmount(purchaseId: Long, newAmount: BigDecimal, target: String = "LOCAL"): Map<String, Any> {
+        log.info("[AdminApiClient][changeAmount] Changing amount for purchase {} to {} on {}", purchaseId, newAmount, target)
+        return clientFor(target).put()
             .uri("/api/v1/admin/purchases/{id}/amount", purchaseId)
             .bodyValue(mapOf("amount" to newAmount))
             .retrieve()
@@ -105,9 +128,9 @@ class AdminApiClient(
     // Reversal of adjustments
     // -----------------------------------------------------------------------
 
-    fun reversalOfAdjustment(purchaseId: Long): Map<String, Any> {
-        log.info("[AdminApiClient][reversalOfAdjustment] Reversing adjustments for purchase {}", purchaseId)
-        return webClient.post()
+    fun reversalOfAdjustment(purchaseId: Long, target: String = "LOCAL"): Map<String, Any> {
+        log.info("[AdminApiClient][reversalOfAdjustment] Reversing adjustments for purchase {} on {}", purchaseId, target)
+        return clientFor(target).post()
             .uri("/api/v1/admin/purchases/{id}/reversal-of-adjustments", purchaseId)
             .retrieve()
             .bodyToMono(MAP_TYPE)
@@ -119,9 +142,9 @@ class AdminApiClient(
     // APR change
     // -----------------------------------------------------------------------
 
-    fun changeApr(purchaseId: Long, newApr: BigDecimal): Map<String, Any> {
-        log.info("[AdminApiClient][changeApr] Changing APR for purchase {} to {}", purchaseId, newApr)
-        return webClient.put()
+    fun changeApr(purchaseId: Long, newApr: BigDecimal, target: String = "LOCAL"): Map<String, Any> {
+        log.info("[AdminApiClient][changeApr] Changing APR for purchase {} to {} on {}", purchaseId, newApr, target)
+        return clientFor(target).put()
             .uri("/api/v1/admin/purchases/{id}/apr", purchaseId)
             .bodyValue(mapOf("apr" to newApr))
             .retrieve()
@@ -134,9 +157,9 @@ class AdminApiClient(
     // Workout
     // -----------------------------------------------------------------------
 
-    fun createWorkout(purchaseId: Long, params: Map<String, Any>): Map<String, Any> {
-        log.info("[AdminApiClient][createWorkout] Creating workout for purchase {}", purchaseId)
-        return webClient.put()
+    fun createWorkout(purchaseId: Long, params: Map<String, Any>, target: String = "LOCAL"): Map<String, Any> {
+        log.info("[AdminApiClient][createWorkout] Creating workout for purchase {} on {}", purchaseId, target)
+        return clientFor(target).put()
             .uri("/api/v1/admin/purchases/{id}/workout", purchaseId)
             .bodyValue(params)
             .retrieve()
@@ -149,9 +172,9 @@ class AdminApiClient(
     // Settlement
     // -----------------------------------------------------------------------
 
-    fun createSettlement(purchaseId: Long, amount: BigDecimal): Map<String, Any> {
-        log.info("[AdminApiClient][createSettlement] Creating settlement for purchase {} with amount {}", purchaseId, amount)
-        return webClient.post()
+    fun createSettlement(purchaseId: Long, amount: BigDecimal, target: String = "LOCAL"): Map<String, Any> {
+        log.info("[AdminApiClient][createSettlement] Creating settlement for purchase {} with amount {} on {}", purchaseId, amount, target)
+        return clientFor(target).post()
             .uri("/api/v1/admin/settlements/purchases/{purchaseId}/plan", purchaseId)
             .bodyValue(mapOf("amount" to amount))
             .retrieve()
@@ -164,9 +187,9 @@ class AdminApiClient(
     // Cancellation
     // -----------------------------------------------------------------------
 
-    fun cancelPurchase(purchaseId: Long, reason: String): Map<String, Any> {
-        log.info("[AdminApiClient][cancelPurchase] Cancelling purchase {} with reason: {}", purchaseId, reason)
-        return webClient.put()
+    fun cancelPurchase(purchaseId: Long, reason: String, target: String = "LOCAL"): Map<String, Any> {
+        log.info("[AdminApiClient][cancelPurchase] Cancelling purchase {} with reason: {} on {}", purchaseId, reason, target)
+        return clientFor(target).put()
             .uri("/api/v1/admin/purchases/{id}/cancel", purchaseId)
             .bodyValue(mapOf("reason" to reason))
             .retrieve()
@@ -175,9 +198,9 @@ class AdminApiClient(
             ?: emptyMap()
     }
 
-    fun restoreCancellation(purchaseId: Long): Map<String, Any> {
-        log.info("[AdminApiClient][restoreCancellation] Restoring cancellation for purchase {}", purchaseId)
-        return webClient.put()
+    fun restoreCancellation(purchaseId: Long, target: String = "LOCAL"): Map<String, Any> {
+        log.info("[AdminApiClient][restoreCancellation] Restoring cancellation for purchase {} on {}", purchaseId, target)
+        return clientFor(target).put()
             .uri("/api/v1/admin/purchases/{id}/restore-cancellation", purchaseId)
             .retrieve()
             .bodyToMono(MAP_TYPE)
@@ -189,10 +212,53 @@ class AdminApiClient(
     // Chargeback reversal
     // -----------------------------------------------------------------------
 
-    fun reverseChargeback(purchaseId: Long): Map<String, Any> {
-        log.info("[AdminApiClient][reverseChargeback] Reversing chargeback for purchase {}", purchaseId)
-        return webClient.put()
+    fun reverseChargeback(purchaseId: Long, target: String = "LOCAL"): Map<String, Any> {
+        log.info("[AdminApiClient][reverseChargeback] Reversing chargeback for purchase {} on {}", purchaseId, target)
+        return clientFor(target).put()
             .uri("/api/v1/admin/purchases/{id}/reverse-chargeback", purchaseId)
+            .retrieve()
+            .bodyToMono(MAP_TYPE)
+            .block(timeout)
+            ?: emptyMap()
+    }
+
+    // -----------------------------------------------------------------------
+    // Waive payment
+    // -----------------------------------------------------------------------
+
+    fun waivePayment(paymentId: Long, target: String = "LOCAL"): Map<String, Any> {
+        log.info("[AdminApiClient][waivePayment] Waiving payment {} on {}", paymentId, target)
+        return clientFor(target).put()
+            .uri("/api/v1/admin/purchases/payments/{paymentId}/waive", paymentId)
+            .retrieve()
+            .bodyToMono(MAP_TYPE)
+            .block(timeout)
+            ?: emptyMap()
+    }
+
+    // -----------------------------------------------------------------------
+    // Update payment fields
+    // -----------------------------------------------------------------------
+
+    fun updatePaymentAmount(paymentId: Long, amount: BigDecimal, target: String = "LOCAL"): Map<String, Any> {
+        log.info("[AdminApiClient][updatePaymentAmount] Updating payment {} amount to {} on {}", paymentId, amount, target)
+        return clientFor(target).put()
+            .uri("/internal/v1/payments/{paymentId}", paymentId)
+            .bodyValue(mapOf("amount" to amount, "isActive" to true))
+            .retrieve()
+            .bodyToMono(MAP_TYPE)
+            .block(timeout)
+            ?: emptyMap()
+    }
+
+    // -----------------------------------------------------------------------
+    // CPP status recalculation
+    // -----------------------------------------------------------------------
+
+    fun recalculateCppStatus(purchaseId: Long, target: String = "LOCAL"): Map<String, Any> {
+        log.info("[AdminApiClient][recalculateCppStatus] Recalculating CPP status for purchase {} on {}", purchaseId, target)
+        return clientFor(target).put()
+            .uri("/api/v1/admin/purchases/{id}/payments/onschedule", purchaseId)
             .retrieve()
             .bodyToMono(MAP_TYPE)
             .block(timeout)

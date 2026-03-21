@@ -43,6 +43,10 @@ class SnowflakeConfig {
             addDataSourceProperty("warehouse", props.warehouse)
             addDataSourceProperty("role", props.role)
             addDataSourceProperty("authenticator", props.authenticator)
+            if (props.password.isNotBlank()) {
+                password = props.password
+                addDataSourceProperty("password", props.password)
+            }
             addDataSourceProperty("db", "BRONZE")
             // Use JSON result format to avoid Arrow --add-opens requirement on Java 17+
             addDataSourceProperty("JDBC_QUERY_RESULT_FORMAT", "JSON")
@@ -52,8 +56,9 @@ class SnowflakeConfig {
 
             // Pool settings: keep one connection alive, reuse it for all queries.
             // This means the Okta browser login happens exactly once on first query.
-            minimumIdle = 1
+            minimumIdle = 0
             maximumPoolSize = 3
+            initializationFailTimeout = -1  // Don't connect at startup (lazy, first query triggers SSO)
             connectionTimeout = 120_000  // 2 min -- SSO login takes time
             idleTimeout = 600_000        // 10 min
             maxLifetime = 3_600_000      // 1 hour
@@ -76,6 +81,7 @@ class SnowflakeConfig {
 class SnowflakeProperties {
     var account: String = ""
     var user: String = ""
+    var password: String = ""
     var warehouse: String = ""
     var role: String = ""
     var authenticator: String = "externalbrowser"

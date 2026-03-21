@@ -33,6 +33,8 @@ data class PurchaseSnapshot(
     val unifiedChargeEvents: List<UnifiedChargeEvent> = emptyList(),
     val disbursals: List<Disbursal> = emptyList(),
     val disbursalDiffs: List<DisbursalDiff> = emptyList(),
+    val offerDisbursals: List<OfferDisbursal> = emptyList(),
+    val offerDisbursalMapping: List<OfferDisbursalMapping> = emptyList(),
     val purchaseProperties: Map<String, String> = emptyMap(),
 ) {
     val isAutopayPaused: Boolean get() = purchaseStatus == 90
@@ -387,4 +389,16 @@ data class DisbursalDiff(
     val paymentActionId: Long?,
     val amountDiff: BigDecimal,
     val disbursalDate: String? = null,
+)
+
+data class OfferDisbursal(
+    val id: Long,
+    val cycle: Int,
+    val percent: BigDecimal,
+    val downPaymentPercent: BigDecimal?,
+)
+
+data class OfferDisbursalMapping(
+    val offerDisbursalId: Long,
+    val actualDisbursalId: Long,
 )

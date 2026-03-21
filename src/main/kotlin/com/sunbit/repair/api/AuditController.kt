@@ -17,9 +17,10 @@ class AuditController(
     @GetMapping("/recent")
     fun getRecent(
         @RequestParam(defaultValue = "50") limit: Int,
+        @RequestParam(defaultValue = "0") offset: Int,
     ): ResponseEntity<List<AuditEntry>> {
-        log.info("[AuditController][getRecent] limit={}", limit)
-        return ResponseEntity.ok(auditService.getRecent(limit))
+        log.info("[AuditController][getRecent] limit={} offset={}", limit, offset)
+        return ResponseEntity.ok(auditService.getRecent(limit, offset))
     }
 
     @GetMapping("/{id}")

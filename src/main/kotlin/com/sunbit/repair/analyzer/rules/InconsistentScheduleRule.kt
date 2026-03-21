@@ -20,6 +20,11 @@ class InconsistentScheduleRule : AnalysisRule {
     override val ruleId = "inconsistent-schedule"
     override val ruleName = "Inconsistent Schedule Gap Detection"
     override val description = "Finds gaps exceeding 45 days between consecutive active unpaid scheduled payments"
+    override val detailedDescription = """
+        A loan's payment schedule should have regular intervals between due dates (typically monthly, ~30 days). This rule sorts active unpaid scheduled payments by due date and checks for gaps exceeding 45 days between consecutive payments. A large gap usually means a payment was lost during a failed rebalance or mutation, leaving a hole in the schedule where the customer won't be charged.
+
+        Detection: Sorts active unpaid scheduled payments (type=0) by dueDate, calculates days between consecutive payments, flags gaps > 45 days. Reports the expected interval based on the most common gap.
+    """.trimIndent()
 
     companion object {
         private const val MAX_GAP_DAYS = 45L
@@ -66,7 +71,13 @@ class InconsistentScheduleRule : AnalysisRule {
                     affectedPaymentIds = listOf(prev.id, curr.id),
                     description = "Gap of $gapDays days between payment ${prev.id} " +
                         "(dueDate=${prev.dueDate}) and payment ${curr.id} (dueDate=${curr.dueDate}). " +
-                        "Expected interval is approximately $expectedInterval days.",
+                        "Expected interval is approximately $expectedInterval days. " +
+                        "The loan's payment schedule should have regular intervals (typically monthly). " +
+                        "A gap of $gapDays days between consecutive unpaid payments suggests a payment was lost " +
+                        "or accidentally deleted from the schedule. This can happen when an incomplete rebalance " +
+                        "drops a row, a failed mutation deletes a payment without creating its replacement, or a " +
+                        "cancellation partially completed. The customer may miss a payment period entirely, causing " +
+                        "the loan to fall behind or the remaining payments to be miscalculated.",
                     evidence = mapOf(
                         "previousPaymentId" to prev.id,
                         "previousDueDate" to prev.dueDate.toString(),

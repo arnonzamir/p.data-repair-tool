@@ -13,10 +13,16 @@ snowflake:
   role: ${SNOWFLAKE_ROLE:DBT_DEV_ROLE}
   authenticator: externalbrowser
 
-# Admin API (purchase-service)
+# Admin API (purchase-service) per target environment
 admin-api:
-  base-url: ${ADMIN_API_BASE_URL:http://localhost:8080}
   timeout-seconds: 30
+  targets:
+    local:
+      base-url: ${ADMIN_API_LOCAL_URL:http://localhost:8080}
+    staging:
+      base-url: ${ADMIN_API_STAGING_URL:https://purchase-service.staging.sunbit.com}
+    prod:
+      base-url: ${ADMIN_API_PROD_URL:https://purchase-service.prod.sunbit.com}
 
 # MySQL targets for replication
 mysql:
@@ -39,6 +45,15 @@ call-center:
 # When customer-retailer-id and payment-profile-id are set, the replicator
 # reuses existing records instead of inserting new ones (skips customers_retailers,
 # customer_profiles, payment_profiles, card_payment_methods).
+# Git-based sync for collaborative work (lists, statuses, notes, claims)
+sync:
+  enabled: ${SYNC_ENABLED:true}
+  repo-url: ${SYNC_REPO_URL:git@github.com:sunbit-dev/account-management-service.git}
+  local-path: ${SYNC_LOCAL_PATH:${HOME}/.sunbit/repair-sync}
+  branch: ${SYNC_BRANCH:purchase-repair-sync}
+  folder: ${SYNC_FOLDER:repair-sync}
+  poll-interval-seconds: ${SYNC_POLL_INTERVAL:30}
+
 replication:
   id-offset: 100000000
   local:

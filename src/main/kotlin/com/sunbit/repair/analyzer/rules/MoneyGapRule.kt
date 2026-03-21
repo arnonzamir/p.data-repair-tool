@@ -31,6 +31,11 @@ class MoneyGapRule : AnalysisRule {
     override val ruleId = "money-gap"
     override val ruleName = "Money Gap Detection"
     override val description = "Detects schedule or money gaps with severity based on gap size and direction"
+    override val detailedDescription = """
+        This rule compares two things: (1) Schedule gap -- whether the sum of all active payment amounts equals what the loan plan expects (totalOfPayments). A positive gap means the customer will pay less than planned; a negative gap means they'll pay more. (2) Money gap -- whether the actual dollars collected from the customer's card match what the payment records say was paid. Gaps arise from failed rebalances, partial mutations, or cancelled operations that didn't fully complete.
+
+        Detection: Uses the pre-computed BalanceCheck which sums active payment amounts vs plan total (schedule gap) and net collected vs paid installments (money gap). Severity is tiered by gap size and direction.
+    """.trimIndent()
 
     companion object {
         private val TOLERANCE = BigDecimal("0.05")
@@ -70,7 +75,11 @@ class MoneyGapRule : AnalysisRule {
                     severity = severity,
                     affectedPaymentIds = emptyList(),
                     description = "Schedule gap of \$${absGap} ($direction). " +
-                        "Plan total=${bc.planTotal}, active schedule total=${bc.scheduleTotal}.",
+                        "Plan total=${bc.planTotal}, active schedule total=${bc.scheduleTotal}. " +
+                        "The schedule gap means the sum of all active payment amounts (\$${bc.scheduleTotal}) does not equal " +
+                        "what the loan plan expects (\$${bc.planTotal}). This can happen after a failed rebalance, " +
+                        "a partial mutation, or a cancelled operation that did not fully complete. " +
+                        "If in the customer's favor, they will underpay the loan; if against the customer, they will be overcharged.",
                     evidence = mapOf(
                         "scheduleGap" to bc.scheduleGap,
                         "direction" to direction,
@@ -101,7 +110,11 @@ class MoneyGapRule : AnalysisRule {
                     severity = Severity.HIGH,
                     affectedPaymentIds = emptyList(),
                     description = "Money gap of \$${bc.moneyGap.abs()} detected. " +
-                        "Net collected does not match expected based on paid payments.",
+                        "Net collected (\$${bc.netCollected}) does not match expected based on paid payments (\$${bc.paidInstallments}). " +
+                        "The money gap means the actual dollars collected from the customer (via card charges) do not match " +
+                        "what the payment records say was paid. This is a real financial discrepancy: money was either " +
+                        "collected without being recorded, or recorded without being collected. Common causes include " +
+                        "cross-schema desync, failed refunds, or charge transactions that were not properly linked to payments.",
                     evidence = mapOf(
                         "moneyGap" to bc.moneyGap,
                         "moneyCollected" to bc.moneyCollected,

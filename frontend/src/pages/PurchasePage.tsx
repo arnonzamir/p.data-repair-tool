@@ -388,16 +388,6 @@ export function PurchasePage({ purchaseId, onSelectPurchase, onClearPurchase }: 
                   Cached: {formatCachedAt(cachedAt)} ({timeAgo(cachedAt)})
                 </span>
                 <button
-                  className="btn btn-rescan"
-                  onClick={() => {
-                    analyzePurchase(purchaseId, false).then((result) => {
-                      setDetailData(result);
-                    });
-                  }}
-                >
-                  Rescan rules
-                </button>
-                <button
                   className="btn btn-refresh"
                   onClick={() => loadDetail(purchaseId, true)}
                   disabled={refreshing}

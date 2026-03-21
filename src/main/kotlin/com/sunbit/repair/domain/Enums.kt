@@ -173,5 +173,7 @@ enum class AuditAction {
     ANALYZE,
     REPAIR,
     REPLICATE,
-    VERIFY
+    VERIFY,
+    MANIPULATE,
+    MANIPULATE_FLOW,
 }

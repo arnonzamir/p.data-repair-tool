@@ -20,6 +20,11 @@ class LoanTransactionMismatchRule : AnalysisRule {
     override val ruleId = "loan-transaction-mismatch"
     override val ruleName = "Loan Transaction vs Payment Mismatch"
     override val description = "Verifies that loan_transaction financial breakdown matches the corresponding payment fields"
+    override val detailedDescription = """
+        When a payment is charged, the system creates a loan_transaction that records the exact financial breakdown at charge time (amount, interest, principal balance). If the payment is later modified (e.g., by a rebalance or amount change), its current fields may differ from what was actually charged. This rule compares each loan_transaction against its corresponding payment and flags mismatches. Negative loan_transactions (reversals/refunds) are excluded. Principal balance mismatches on rebalanced payments (CI != 0) are excluded since rebalancing intentionally recalculates the running balance.
+
+        Detection: Joins loan_transactions to payments by paymentId, compares amount, interestAmount, and principalBalance fields with ${'$'}0.01 tolerance.
+    """.trimIndent()
 
     private val TOLERANCE = BigDecimal("0.01")
 
@@ -75,9 +80,14 @@ class LoanTransactionMismatchRule : AnalysisRule {
                     ruleName = ruleName,
                     severity = severity,
                     affectedPaymentIds = listOf(payment.id),
-                    description = "Payment ${payment.id} was modified after charge. " +
-                        "Loan transaction (what was collected) differs from payment (current schedule): " +
-                        mismatches.joinToString("; "),
+                    description = "Payment ${payment.id} was modified after being charged. " +
+                        "Loan transaction (what was actually collected from the customer at charge time) differs from " +
+                        "the payment record (current schedule): " + mismatches.joinToString("; ") + ". " +
+                        "The loan_transaction records what was actually charged to the customer at the time of the charge. " +
+                        "If the payment record now shows different amounts, it means the payment was modified after being " +
+                        "charged (e.g., by a rebalance or amount change). The loan system's current schedule no longer " +
+                        "reflects what was really collected, which can cause incorrect balance calculations, wrong " +
+                        "interest accrual, and misleading reports.",
                     evidence = mapOf(
                         "paymentId" to payment.id,
                         "loanTransactionId" to lt.id,

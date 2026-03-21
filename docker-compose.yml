@@ -1,0 +1,51 @@
+version: "3.8"
+
+services:
+  purchase-repair-tool:
+    build: .
+    ports:
+      - "8090:8090"
+    environment:
+      # === REQUIRED: Set your Snowflake user ===
+      SNOWFLAKE_USER: ${SNOWFLAKE_USER:?Set SNOWFLAKE_USER in .env (your-name@sunbit.com)}
+
+      # Snowflake connection (defaults work for most users)
+      SNOWFLAKE_ACCOUNT: ${SNOWFLAKE_ACCOUNT:-WXA20498.us-west-2.privatelink}
+      SNOWFLAKE_WAREHOUSE: ${SNOWFLAKE_WAREHOUSE:-DATA_ENG_WH}
+      SNOWFLAKE_ROLE: ${SNOWFLAKE_ROLE:-DBT_DEV_ROLE}
+      # For Docker: use 'externalbrowser' with token cache mount, or 'snowflake' with password
+      SNOWFLAKE_AUTHENTICATOR: ${SNOWFLAKE_AUTHENTICATOR:-externalbrowser}
+      # Only needed if SNOWFLAKE_AUTHENTICATOR=snowflake
+      SNOWFLAKE_PASSWORD: ${SNOWFLAKE_PASSWORD:-}
+
+      # Admin API targets (purchase-service endpoints)
+      ADMIN_API_LOCAL_URL: ${ADMIN_API_LOCAL_URL:-http://host.docker.internal:8080}
+      ADMIN_API_STAGING_URL: ${ADMIN_API_STAGING_URL:-https://purchase-service.staging.sunbit.com}
+      ADMIN_API_PROD_URL: ${ADMIN_API_PROD_URL:-https://purchase-service.prod.sunbit.com}
+
+      # Git sync
+      SYNC_ENABLED: "true"
+      SYNC_REPO_URL: git@github.com:sunbit-dev/account-management-service.git
+      SYNC_BRANCH: purchase-repair-sync
+      SYNC_FOLDER: repair-sync
+      SYNC_LOCAL_PATH: /data/sync
+      SYNC_POLL_INTERVAL: "30"
+
+    volumes:
+      # Persist Snowflake cache and SQLite DB across container restarts
+      - repair-cache:/root/.sunbit
+
+      # SSH key for git sync (mount your key read-only)
+      - ${HOME}/.ssh/id_rsa:/root/.ssh/id_rsa:ro
+      - ${HOME}/.ssh/id_ed25519:/root/.ssh/id_ed25519:ro
+
+      # Snowflake SSO token cache (so browser auth only happens once)
+      - ${HOME}/.cache/snowflake:/root/.cache/snowflake
+
+    extra_hosts:
+      # Allow connecting to services on the host machine
+      - "host.docker.internal:host-gateway"
+      - "sunbit-mysql:host-gateway"
+
+volumes:
+  repair-cache:

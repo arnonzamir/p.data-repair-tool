@@ -21,6 +21,11 @@ class DuplicateActiveSameDateRule : AnalysisRule {
     override val ruleId = "duplicate-active-same-date"
     override val ruleName = "Duplicate Active Same Date Detection"
     override val description = "Finds multiple active scheduled payments sharing the same due date"
+    override val detailedDescription = """
+        Each due date in a loan schedule should have at most one active scheduled payment. This rule groups active scheduled payments (type=0) by their due date and flags dates with multiple active payments. It also checks the charge source (JOB = automated system charge, ADMIN = manual agent action) to determine severity: automated double charges are CRITICAL because the system erroneously charged twice, while manual duplicates may be intentional.
+
+        Detection: Group active scheduled payments by dueDate, flag groups with 2+ members. Cross-reference with payment attempts to determine charge source.
+    """.trimIndent()
 
     companion object {
         private val SOURCE_NAMES = mapOf(
@@ -75,13 +80,25 @@ class DuplicateActiveSameDateRule : AnalysisRule {
 
             val description = when {
                 allPaid && allAutomated ->
-                    "Confirmed automated double charge on $dueDate: $sourceDesc. Both charged by JOB."
+                    "In the loan system, each due date should have at most one active scheduled payment. " +
+                        "Confirmed automated double charge on $dueDate: $sourceDesc. Both were charged by the automatic " +
+                        "charge JOB, meaning the system charged the customer twice for the same installment. This typically " +
+                        "happens when a retry or race condition in the charge job processes the same slot twice."
                 allPaid && anyManual ->
-                    "Suspected double charge on $dueDate: $sourceDesc. At least one is manual -- may be intentional."
+                    "In the loan system, each due date should have at most one active scheduled payment. " +
+                        "Suspected double charge on $dueDate: $sourceDesc. At least one charge was initiated manually " +
+                        "(by an admin, customer self-service, or other non-automated source), so this may have been intentional. " +
+                        "However, if unintentional, the customer was charged twice for the same installment."
                 allPaid ->
-                    "Double charge on $dueDate: $sourceDesc. Both PAID."
+                    "In the loan system, each due date should have at most one active scheduled payment. " +
+                        "Double charge on $dueDate: $sourceDesc. Both are PAID but the charge source is unknown. " +
+                        "The customer was charged twice for the same installment slot."
                 else ->
-                    "Duplicate active scheduled payments on $dueDate: $sourceDesc. Not all paid yet."
+                    "In the loan system, each due date should have at most one active scheduled payment. " +
+                        "Duplicate active scheduled payments found on $dueDate: $sourceDesc. Not all are paid yet, " +
+                        "but if left unresolved, the customer could be charged multiple times for the same installment " +
+                        "when the auto-charge job runs. This usually results from a failed mutation that created a duplicate " +
+                        "payment without deactivating the original."
             }
 
             findings.add(

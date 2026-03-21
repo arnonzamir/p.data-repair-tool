@@ -44,6 +44,7 @@ data class RuleExecutionResult(
     val executionTimeMs: Long,
     val findingCount: Int,
     val error: String? = null,
+    val detailedDescription: String? = null,
 )
 
 // ---------------------------------------------------------------------------

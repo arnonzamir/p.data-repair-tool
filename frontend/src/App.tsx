@@ -4,12 +4,14 @@ import { PurchasePage } from './pages/PurchasePage';
 import { RulesPage } from './pages/RulesPage';
 // ReplicatePage removed -- replication is accessible from purchase detail view
 import { AuditPage } from './pages/AuditPage';
+import { ManipulatorsPage } from './pages/ManipulatorsPage';
 
-type PageId = 'purchase' | 'rules' | 'audit';
+type PageId = 'purchase' | 'rules' | 'manipulators' | 'audit';
 
 const NAV_TABS: { id: PageId; label: string }[] = [
   { id: 'purchase', label: 'Purchase' },
   { id: 'rules', label: 'Rules' },
+  { id: 'manipulators', label: 'Manipulators' },
   { id: 'audit', label: 'Audit' },
 ];
 
@@ -22,6 +24,7 @@ function parseHash(): { page: PageId; purchaseId: number | null; tab?: string } 
     return { page: 'purchase', purchaseId: isNaN(id) ? null : id, tab: parts[2] };
   }
   if (parts[0] === 'rules') return { page: 'rules', purchaseId: null };
+  if (parts[0] === 'manipulators') return { page: 'manipulators', purchaseId: null };
   if (parts[0] === 'audit') return { page: 'audit', purchaseId: null };
   return { page: 'purchase', purchaseId: null };
 }
@@ -86,6 +89,8 @@ function App() {
         );
       case 'rules':
         return <RulesPage />;
+      case 'manipulators':
+        return <ManipulatorsPage />;
       case 'audit':
         return <AuditPage />;
       default:

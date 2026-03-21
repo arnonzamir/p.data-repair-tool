@@ -28,6 +28,11 @@ class OrphanedPaymentRule : AnalysisRule {
     override val ruleId = "orphaned-payment"
     override val ruleName = "Orphaned Payment Detection"
     override val description = "Finds active mutation-created payments with missing or invalid parent references"
+    override val detailedDescription = """
+        When the system modifies a payment (date change, amount change, cancel, etc.), it creates a child payment with a directParentId linking back to the original. The change indicator (CI) field records which operation created the child. This rule finds active payments that were created by a mutation (CI != 0) but have no parent link. For CI=8 (PAY_NOW), only scheduled payments (type=0) need parents -- standalone unscheduled payments (type 10/20) are created independently and don't need a parent. An orphaned payment suggests the mutation partially failed.
+
+        Detection: Checks active payments with CI in {4,8,32,512,514,515,517,518} for missing or invalid directParentId. Excludes standalone pay-now (CI=8 + type 10/20).
+    """.trimIndent()
 
     /** Change indicators where a parent is always expected. */
     private val PARENT_REQUIRED_CIS = setOf(4, 32, 512, 514, 515, 517, 518)
@@ -57,7 +62,7 @@ class OrphanedPaymentRule : AnalysisRule {
             val orphanReason = when {
                 payment.directParentId == null ->
                     "Mutation-created payment (CI=${payment.changeIndicatorName ?: payment.changeIndicator}) " +
-                        "has no directParentId -- expected for type=${payment.typeName ?: payment.type}"
+                        "has no directParentId. Expected for type=${payment.typeName ?: payment.type}"
                 payment.directParentId !in allPaymentIds ->
                     "directParentId=${payment.directParentId} does not exist in snapshot"
                 else -> null
@@ -70,7 +75,14 @@ class OrphanedPaymentRule : AnalysisRule {
                         ruleName = ruleName,
                         severity = Severity.MEDIUM,
                         affectedPaymentIds = listOf(payment.id),
-                        description = "Orphaned payment ${payment.id}: $orphanReason",
+                        description = "Orphaned payment ${payment.id}: $orphanReason. " +
+                            "This payment was created by a mutation operation " +
+                            "(CI=${payment.changeIndicatorName ?: payment.changeIndicator}) but has no link to the parent " +
+                            "payment it was supposed to replace. In the loan system, mutations (like date changes, amount " +
+                            "changes, or rebalances) work by creating a new 'child' payment and deactivating the old 'parent'. " +
+                            "The child should always reference its parent via directParentId. A missing or invalid parent " +
+                            "reference suggests the mutation partially failed, making it difficult to trace what this payment " +
+                            "replaced and whether the original was properly deactivated.",
                         evidence = mapOf(
                             "paymentId" to payment.id,
                             "changeIndicator" to payment.changeIndicator,

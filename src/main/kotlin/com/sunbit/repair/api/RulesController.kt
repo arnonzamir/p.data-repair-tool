@@ -24,6 +24,7 @@ class RulesController(
                 ruleId = info.id,
                 ruleName = info.name,
                 description = info.description,
+                detailedDescription = info.detailedDescription,
                 enabled = info.enabled,
             )
         }
@@ -55,5 +56,6 @@ data class RuleInfoDto(
     val ruleId: String,
     val ruleName: String,
     val description: String,
+    val detailedDescription: String,
     val enabled: Boolean,
 )

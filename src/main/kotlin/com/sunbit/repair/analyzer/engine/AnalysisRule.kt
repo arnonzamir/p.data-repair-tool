@@ -18,6 +18,9 @@ interface AnalysisRule {
     /** Short explanation of what this rule detects. */
     val description: String
 
+    /** Detailed explanation of the rule's detection logic, written for non-experts. */
+    val detailedDescription: String get() = description
+
     /** Whether the rule is enabled when no explicit override exists. */
     val defaultEnabled: Boolean get() = true
 

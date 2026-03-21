@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import type { PurchaseSnapshot, AnalysisResult, SuggestedRepair, Finding, ReplicationRecord } from '../../types/domain';
-import { rollbackReplication, getConfig } from '../../api/client';
+import { rollbackReplication, getConfig, getSyncPurchaseStates, SyncPurchaseState } from '../../api/client';
 import PaymentsTable from './PaymentsTable';
 import PaymentsTab from './PaymentsTab';
 import PurchaseTimeline from './PurchaseTimeline';
@@ -14,8 +14,9 @@ import UnifiedChargeEventsTab from './UnifiedChargeEventsTab';
 import ReplicateInline from '../replicate/ReplicateInline';
 import NotesAndLists from './NotesAndLists';
 import DisbursalsTab from './DisbursalsTab';
+import ManipulatorPanel from '../manipulator/ManipulatorPanel';
 
-type TabKey = 'payments' | 'findings' | 'money' | 'charges' | 'disbursals' | 'notifications' | 'actions' | 'tickets' | 'timeline';
+type TabKey = 'payments' | 'findings' | 'money' | 'charges' | 'disbursals' | 'notifications' | 'actions' | 'tickets' | 'timeline' | 'manipulators';
 
 interface PurchaseDetailProps {
   snapshot: PurchaseSnapshot;
@@ -50,14 +51,32 @@ function formatDate(value: string | null | undefined): string {
   return value.substring(0, 10);
 }
 
+function timeAgo(iso: string | undefined): string {
+  if (!iso) return '';
+  try {
+    const s = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
+    if (s < 60) return `${s}s ago`;
+    if (s < 3600) return `${Math.floor(s / 60)}m ago`;
+    if (s < 86400) return `${Math.floor(s / 3600)}h ago`;
+    return `${Math.floor(s / 86400)}d ago`;
+  } catch { return ''; }
+}
+
 const PurchaseDetail: React.FC<PurchaseDetailProps> = ({ snapshot, analysis, replications = [], onRefresh, onListsChanged }) => {
   const [activeTab, setActiveTab] = useState<TabKey>('payments');
   const [repairState, setRepairState] = useState<{ repair: SuggestedRepair; finding: Finding } | null>(null);
   const [showReplicate, setShowReplicate] = useState(false);
   const [rollingBack, setRollingBack] = useState<string | null>(null);
   const [ccUrls, setCcUrls] = useState<Record<string, string>>({});
+  const [syncState, setSyncState] = useState<SyncPurchaseState | null>(null);
 
   useEffect(() => { getCallCenterUrls().then(setCcUrls); }, []);
+
+  useEffect(() => {
+    getSyncPurchaseStates([snapshot.purchaseId])
+      .then((states) => setSyncState(states[snapshot.purchaseId] || null))
+      .catch(() => setSyncState(null));
+  }, [snapshot.purchaseId]);
 
   const handleRollback = useCallback(async (r: ReplicationRecord) => {
     if (!window.confirm(`Rollback replication of purchase ${snapshot.purchaseId} from ${r.target}? This will DELETE the replicated data (purchase ${r.replicatedPurchaseId}).`)) {
@@ -97,6 +116,7 @@ const PurchaseDetail: React.FC<PurchaseDetailProps> = ({ snapshot, analysis, rep
     { key: 'notifications', label: 'Notifications' },
     { key: 'tickets', label: `Tickets (${snapshot.supportTickets.length})` },
     { key: 'findings', label: `Issues (${analysis.findings.length})` },
+    { key: 'manipulators', label: 'Fix' },
   ];
 
   const scheduleGap = snapshot.balanceCheck.scheduleGap;
@@ -114,8 +134,10 @@ const PurchaseDetail: React.FC<PurchaseDetailProps> = ({ snapshot, analysis, rep
   );
   const isPaidOff = snapshot.cppStatus === 'PAID_OFF';
   const isCancelled = snapshot.purchaseStatus === 60 || snapshot.purchaseStatus === 70;
+  const isAutopayPaused = snapshot.isAutopayPaused;
   const autochargeStatus = isPaidOff ? 'N/A (paid off)'
     : isCancelled ? 'N/A (cancelled)'
+    : isAutopayPaused ? 'OFF (autopay paused)'
     : activeUnpaid.length === 0 ? 'N/A (no unpaid)'
     : hasManualUntil ? 'OFF (manual_until set)'
     : 'ON';
@@ -143,6 +165,12 @@ const PurchaseDetail: React.FC<PurchaseDetailProps> = ({ snapshot, analysis, rep
           )}
           {snapshot.isMultiDisbursal && (
             <span className="badge badge-multi-disbursal">MULTI-DISBURSAL ({(snapshot.disbursals || []).length})</span>
+          )}
+          {autochargeStatus === 'OFF (manual_until set)' && (
+            <span className="badge badge-autocharge-off">AUTOCHARGE OFF</span>
+          )}
+          {autochargeStatus === 'ON' && (
+            <span className="badge badge-autocharge-on">AUTOCHARGE ON</span>
           )}
           {snapshot.specialStatus && (
             <span className="badge badge-special">{snapshot.specialStatus}</span>
@@ -185,6 +213,15 @@ const PurchaseDetail: React.FC<PurchaseDetailProps> = ({ snapshot, analysis, rep
           <button className="btn" onClick={onRefresh}>Refresh</button>
         </div>
       </div>
+
+      {/* Claim warning */}
+      {syncState?.claimedBy && syncState.claimedBy !== (localStorage.getItem('operator') || '') && (
+        <div className="claim-warning">
+          This purchase is currently claimed by <strong>{syncState.claimedBy}</strong>
+          {syncState.claimedAt ? ` (${timeAgo(syncState.claimedAt)})` : ''}.
+          Coordinate before making changes.
+        </div>
+      )}
 
       {/* Replicate inline panel */}
       {showReplicate && (
@@ -322,11 +359,12 @@ const PurchaseDetail: React.FC<PurchaseDetailProps> = ({ snapshot, analysis, rep
           <PaymentsTab
             snapshot={snapshot}
             highlightIds={highlightIds}
+            findings={analysis.findings}
             onNavigateTab={(tab) => setActiveTab(tab as TabKey)}
           />
         )}
         {activeTab === 'findings' && (
-          <FindingsPanel findings={analysis.findings} onSelectRepair={handleSelectRepair} />
+          <FindingsPanel findings={analysis.findings} ruleResults={analysis.ruleResults} onSelectRepair={handleSelectRepair} onRescan={onRefresh} />
         )}
         {activeTab === 'charges' && (
           <UnifiedChargeEventsTab
@@ -349,6 +387,8 @@ const PurchaseDetail: React.FC<PurchaseDetailProps> = ({ snapshot, analysis, rep
           <DisbursalsTab
             disbursals={snapshot.disbursals || []}
             disbursalDiffs={snapshot.disbursalDiffs || []}
+            offerDisbursals={snapshot.offerDisbursals || []}
+            offerDisbursalMapping={snapshot.offerDisbursalMapping || []}
             plan={snapshot.plan}
           />
         )}
@@ -360,6 +400,9 @@ const PurchaseDetail: React.FC<PurchaseDetailProps> = ({ snapshot, analysis, rep
         )}
         {activeTab === 'tickets' && (
           <TicketsTab tickets={snapshot.supportTickets} />
+        )}
+        {activeTab === 'manipulators' && (
+          <ManipulatorPanel purchaseId={snapshot.purchaseId} onRefresh={onRefresh} />
         )}
       </div>
 

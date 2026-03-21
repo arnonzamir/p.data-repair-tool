@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import type { Payment, PaymentAttempt, ChargeTransaction, NotificationSummary, SupportTicket } from '../../types/domain';
+import type { Payment, PaymentAttempt, ChargeTransaction, NotificationSummary, SupportTicket, Finding } from '../../types/domain';
 import RelatedCommsTooltip, { findRelatedComms } from '../common/RelatedCommsTooltip';
 
 interface PaymentsTableProps {
@@ -7,6 +7,7 @@ interface PaymentsTableProps {
   paymentAttempts?: PaymentAttempt[];
   chargeTransactions?: ChargeTransaction[];
   highlightIds?: number[];
+  findings?: Finding[];
   notifications?: NotificationSummary;
   tickets?: SupportTicket[];
   onNavigateTab?: (tab: string) => void;
@@ -264,13 +265,26 @@ function PaymentDetailPanel({
   );
 }
 
-const PaymentsTable: React.FC<PaymentsTableProps> = ({ payments, paymentAttempts, chargeTransactions, highlightIds, notifications, tickets, onNavigateTab, purchaseId }) => {
+const PaymentsTable: React.FC<PaymentsTableProps> = ({ payments, paymentAttempts, chargeTransactions, highlightIds, findings = [], notifications, tickets, onNavigateTab, purchaseId }) => {
   const [sortKey, setSortKey] = useState<SortKey>('dueDate');
   const [sortAsc, setSortAsc] = useState(true);
   const [showInactive, setShowInactive] = useState(false);
   const [expandedId, setExpandedId] = useState<number | null>(null);
 
   const highlightSet = useMemo(() => new Set(highlightIds || []), [highlightIds]);
+
+  // Map each payment ID to its findings (for inline display)
+  const findingsByPaymentId = useMemo(() => {
+    const map = new Map<number, Finding[]>();
+    for (const f of findings) {
+      for (const pid of f.affectedPaymentIds) {
+        const existing = map.get(pid) || [];
+        existing.push(f);
+        map.set(pid, existing);
+      }
+    }
+    return map;
+  }, [findings]);
 
   const attemptsByPaymentId = useMemo(() => {
     const map = new Map<number, PaymentAttempt[]>();
@@ -377,7 +391,7 @@ const PaymentsTable: React.FC<PaymentsTableProps> = ({ payments, paymentAttempts
             <th>Source</th>
             <th>Change Indicator</th>
             <th>Status</th>
-            <th>Parent</th>
+            <th>Issues</th>
           </tr>
         </thead>
         <tbody>
@@ -387,8 +401,15 @@ const PaymentsTable: React.FC<PaymentsTableProps> = ({ payments, paymentAttempts
             const isExpanded = expandedId === p.id;
             const chargeSource = resolveChargeSource(p, attemptsByPaymentId);
             const isDownPayment = p.type === 30;
+            const sevOrder: Record<string, number> = { CRITICAL: 0, HIGH: 1, MEDIUM: 2, LOW: 3 };
+            const paymentFindings = [...(findingsByPaymentId.get(p.id) || [])].sort((a, b) => (sevOrder[a.severity] ?? 9) - (sevOrder[b.severity] ?? 9));
+            const hasFinding = paymentFindings.length > 0;
+            const worstSeverity = hasFinding
+              ? (['CRITICAL', 'HIGH', 'MEDIUM', 'LOW'].find(s => paymentFindings.some(f => f.severity === s)) || '')
+              : '';
+            const isHighSeverityFinding = worstSeverity === 'CRITICAL' || worstSeverity === 'HIGH';
             const rowClass = [
-              isHighlighted ? 'row-highlight' : '',
+              isHighSeverityFinding ? 'row-finding' : (isHighlighted ? 'row-highlight' : ''),
               isInactive ? 'row-inactive' : '',
               isExpanded ? 'row-expanded' : '',
               isDownPayment ? 'row-down-payment' : '',
@@ -430,7 +451,26 @@ const PaymentsTable: React.FC<PaymentsTableProps> = ({ payments, paymentAttempts
                       {p.computedStatus || '-'}
                     </span>
                   </td>
-                  <td>{p.directParentId ?? p.originalPaymentId ?? '-'}</td>
+                  <td>
+                    {hasFinding ? (
+                      <div
+                        className="finding-inline-link"
+                        onClick={(e) => { e.stopPropagation(); onNavigateTab && onNavigateTab('findings'); }}
+                        title={paymentFindings.map(f => `[${f.severity}] ${f.ruleName}: ${f.description}`).join('\n\n')}
+                      >
+                        {paymentFindings.map((f, idx) => (
+                          <div key={idx} style={{ marginBottom: idx < paymentFindings.length - 1 ? 2 : 0 }}>
+                            <span style={{ fontSize: 11, color: f.severity === 'CRITICAL' ? '#c62828' : f.severity === 'HIGH' ? '#e65100' : f.severity === 'MEDIUM' ? '#f57f17' : '#757575', fontWeight: 600 }}>
+                              {f.severity}
+                            </span>
+                            <div style={{ fontSize: 10, color: '#546e7a', lineHeight: 1.3, maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                              {f.ruleName}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : '-'}
+                  </td>
                 </tr>
                 {isExpanded && (
                   <tr className="detail-row">

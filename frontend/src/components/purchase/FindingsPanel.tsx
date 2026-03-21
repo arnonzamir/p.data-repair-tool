@@ -1,9 +1,12 @@
 import React, { useState, useMemo } from 'react';
-import type { Finding, SuggestedRepair, Severity } from '../../types/domain';
+import type { Finding, SuggestedRepair, Severity, RuleExecutionResult } from '../../types/domain';
+import { renderRichText, renderMarkdownBlock } from '../common/RichText';
 
 interface FindingsPanelProps {
   findings: Finding[];
+  ruleResults?: RuleExecutionResult[];
   onSelectRepair: (repair: SuggestedRepair, finding: Finding) => void;
+  onRescan?: () => void;
 }
 
 const SEVERITY_ORDER: Record<Severity, number> = {
@@ -17,8 +20,25 @@ function severityClass(severity: Severity): string {
   return `severity-${severity.toLowerCase()}`;
 }
 
-const FindingsPanel: React.FC<FindingsPanelProps> = ({ findings, onSelectRepair }) => {
+const FindingsPanel: React.FC<FindingsPanelProps> = ({ findings, ruleResults = [], onSelectRepair, onRescan }) => {
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
+  const [expandedRules, setExpandedRules] = useState<Set<string>>(new Set());
+
+  const ruleDescriptions = useMemo(() => {
+    const map: Record<string, string> = {};
+    for (const r of ruleResults) {
+      if (r.detailedDescription) map[r.ruleId] = r.detailedDescription;
+    }
+    return map;
+  }, [ruleResults]);
+
+  const toggleRuleExpand = (ruleId: string) => {
+    setExpandedRules((prev) => {
+      const next = new Set(prev);
+      if (next.has(ruleId)) next.delete(ruleId); else next.add(ruleId);
+      return next;
+    });
+  };
 
   const grouped = useMemo(() => {
     const sorted = [...findings].sort(
@@ -49,13 +69,29 @@ const FindingsPanel: React.FC<FindingsPanelProps> = ({ findings, onSelectRepair 
   };
 
   if (findings.length === 0) {
-    return <div className="findings-empty">No findings detected.</div>;
+    return (
+      <div className="findings-empty">
+        No findings detected.
+        {onRescan && (
+          <button className="btn btn-rescan" style={{ marginLeft: 12 }} onClick={onRescan}>
+            Rescan for issues
+          </button>
+        )}
+      </div>
+    );
   }
 
   const severities: Severity[] = ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW'];
 
   return (
     <div className="findings-panel">
+      {onRescan && (
+        <div style={{ marginBottom: 12 }}>
+          <button className="btn btn-rescan" onClick={onRescan}>
+            Rescan for issues
+          </button>
+        </div>
+      )}
       {severities.map((sev) => {
         const items = grouped[sev];
         if (items.length === 0) return null;
@@ -87,7 +123,23 @@ const FindingsPanel: React.FC<FindingsPanelProps> = ({ findings, onSelectRepair 
                     <span className="finding-rule">{f.ruleName}</span>
                     <span className="finding-expand-indicator">{isExpanded ? '[-]' : '[+]'}</span>
                   </div>
-                  <p className="finding-description">{f.description}</p>
+                  <div className="finding-description">{renderMarkdownBlock(f.description)}</div>
+
+                  {ruleDescriptions[f.ruleId] && (
+                    <div className="rule-explanation">
+                      <button
+                        className="rule-explanation-toggle"
+                        onClick={(e) => { e.stopPropagation(); toggleRuleExpand(f.ruleId); }}
+                      >
+                        {expandedRules.has(f.ruleId) ? 'Hide rule logic' : 'How does this rule work?'}
+                      </button>
+                      {expandedRules.has(f.ruleId) && (
+                        <div className="rule-explanation-content">
+                          {renderMarkdownBlock(ruleDescriptions[f.ruleId])}
+                        </div>
+                      )}
+                    </div>
+                  )}
 
                   {isExpanded && (
                     <div className="finding-details">
