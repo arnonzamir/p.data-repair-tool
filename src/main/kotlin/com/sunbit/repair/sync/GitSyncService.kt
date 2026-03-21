@@ -298,8 +298,12 @@ class GitSyncService(
         merged.removeAll(remoteRemoved) // remove what remote removed
         merged.removeAll(localRemoved)  // remove what we removed
 
+        // Deduplicate by primary key: if two lines have the same PK value(s),
+        // keep the one with the latest timestamp (last column for review_status)
+        val deduped = deduplicateByPrimaryKey(table, merged)
+
         // Sort for deterministic output
-        val sortedMerged = merged.sorted()
+        val sortedMerged = deduped.sorted()
 
         // Write merged result to sync file
         val header = "-- ${table.name} (synced)"
@@ -330,6 +334,67 @@ class GitSyncService(
     // ------------------------------------------------------------------
     // Export / Import
     // ------------------------------------------------------------------
+
+    /**
+     * For tables with a unique primary key (like purchase_review_status keyed by purchase_id),
+     * if multiple lines share the same PK value, keep only the one with the latest timestamp.
+     * This handles the case where two users update the same purchase's status concurrently.
+     */
+    private fun deduplicateByPrimaryKey(table: SyncTable, lines: Set<String>): Set<String> {
+        // Only deduplicate tables where the sort key is a single column (the PK)
+        if (table.sortKey.contains(",")) return lines
+
+        val pkIndex = table.columns.indexOf(table.sortKey)
+        if (pkIndex < 0) return lines
+
+        // Group by PK value extracted from the INSERT statement
+        val byPk = mutableMapOf<String, MutableList<String>>()
+        for (line in lines) {
+            val pk = extractColumnValue(line, pkIndex)
+            if (pk != null) {
+                byPk.getOrPut(pk) { mutableListOf() }.add(line)
+            }
+        }
+
+        // For PKs with multiple lines, keep the one with the latest timestamp
+        // (timestamp is typically the last column)
+        val result = mutableSetOf<String>()
+        for ((_, pkLines) in byPk) {
+            if (pkLines.size == 1) {
+                result.add(pkLines[0])
+            } else {
+                // Pick the line with the latest timestamp value (lexicographic comparison works for ISO timestamps)
+                val lastTimestampIndex = table.columns.size - 1
+                val best = pkLines.maxByOrNull { extractColumnValue(it, lastTimestampIndex) ?: "" } ?: pkLines[0]
+                result.add(best)
+            }
+        }
+        return result
+    }
+
+    /**
+     * Extract the Nth column value from an INSERT statement like:
+     * INSERT INTO table(col1,col2) VALUES('val1','val2');
+     */
+    private fun extractColumnValue(insertLine: String, index: Int): String? {
+        val valuesStart = insertLine.indexOf("VALUES(")
+        if (valuesStart < 0) return null
+        val valuesPart = insertLine.substring(valuesStart + 7).trimEnd(')', ';')
+        // Simple split on comma, respecting quoted values
+        val values = mutableListOf<String>()
+        var current = StringBuilder()
+        var inQuote = false
+        for (ch in valuesPart) {
+            when {
+                ch == '\'' && !inQuote -> { inQuote = true }
+                ch == '\'' && inQuote -> { inQuote = false }
+                ch == ',' && !inQuote -> { values.add(current.toString()); current = StringBuilder() }
+                else -> current.append(ch)
+            }
+        }
+        values.add(current.toString())
+        return values.getOrNull(index)
+    }
 
     private fun exportTable(table: SyncTable) {
         val lines = exportTableToLines(table)
