@@ -260,6 +260,7 @@ const PaymentsTab: React.FC<PaymentsTabProps> = ({ snapshot, highlightIds, findi
         highlightIds={highlightIds}
         findings={findings}
         checkoutActions={checkoutActions}
+        auditTrail={snapshot.auditTrail}
         notifications={snapshot.notifications}
         tickets={snapshot.supportTickets}
         onNavigateTab={onNavigateTab}

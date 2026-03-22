@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import type { Payment, PaymentAttempt, ChargeTransaction, NotificationSummary, SupportTicket, Finding } from '../../types/domain';
+import type { Payment, PaymentAttempt, ChargeTransaction, NotificationSummary, SupportTicket, Finding, PaymentAuditRecord } from '../../types/domain';
 import RelatedCommsTooltip, { findRelatedComms } from '../common/RelatedCommsTooltip';
 
 interface PaymentsTableProps {
@@ -9,6 +9,7 @@ interface PaymentsTableProps {
   highlightIds?: number[];
   findings?: Finding[];
   checkoutActions?: Record<string, any>[];
+  auditTrail?: PaymentAuditRecord[];
   notifications?: NotificationSummary;
   tickets?: SupportTicket[];
   onNavigateTab?: (tab: string) => void;
@@ -90,12 +91,14 @@ function PaymentDetailPanel({
   attempts,
   transactions,
   checkoutActions = [],
+  auditRecords = [],
 }: {
   payment: Payment;
   allPayments: Payment[];
   attempts: PaymentAttempt[];
   transactions: ChargeTransaction[];
   checkoutActions?: Record<string, any>[];
+  auditRecords?: PaymentAuditRecord[];
 }) {
   // Find children (payments whose directParentId or originalPaymentId points here)
   const children = allPayments.filter(
@@ -246,6 +249,52 @@ function PaymentDetailPanel({
         </div>
       )}
 
+      {/* Audit trail (PAYMENTS_AUD) */}
+      {auditRecords.length > 0 && (
+        <div className="panel-section">
+          <h5>Audit Trail ({auditRecords.length} revisions)</h5>
+          <table className="table table-compact">
+            <thead>
+              <tr>
+                <th>Rev</th>
+                <th>Time</th>
+                <th>Amount</th>
+                <th>Active</th>
+                <th>Paid Off</th>
+                <th>CI</th>
+              </tr>
+            </thead>
+            <tbody>
+              {[...auditRecords].sort((a, b) => a.rev - b.rev).map((a, i, arr) => {
+                const prev = i > 0 ? arr[i - 1] : null;
+                const amountChanged = prev && prev.amount !== a.amount;
+                const activeChanged = prev && prev.isActive !== a.isActive;
+                const paidChanged = prev && prev.paidOffDate !== a.paidOffDate;
+                const ciChanged = prev && prev.changeIndicator !== a.changeIndicator;
+                return (
+                  <tr key={a.rev}>
+                    <td>{a.rev}</td>
+                    <td className="mono" style={{ fontSize: 11 }}>{formatDateTime(a.rowTime)}</td>
+                    <td style={{ fontWeight: amountChanged ? 700 : 400, color: amountChanged ? '#c62828' : undefined }}>
+                      {formatAmount(a.amount)}
+                    </td>
+                    <td style={{ fontWeight: activeChanged ? 700 : 400, color: activeChanged ? '#c62828' : undefined }}>
+                      {a.isActive != null ? (a.isActive ? 'Yes' : 'No') : '-'}
+                    </td>
+                    <td style={{ fontWeight: paidChanged ? 700 : 400, color: paidChanged ? '#c62828' : undefined }}>
+                      {a.paidOffDate ? formatDate(a.paidOffDate) : '-'}
+                    </td>
+                    <td style={{ fontWeight: ciChanged ? 700 : 400, color: ciChanged ? '#c62828' : undefined }}>
+                      {a.changeIndicator ?? '-'}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+
       {/* Checkout.com actions */}
       {checkoutActions.length > 0 && (
         <div className="panel-section">
@@ -290,13 +339,24 @@ function PaymentDetailPanel({
   );
 }
 
-const PaymentsTable: React.FC<PaymentsTableProps> = ({ payments, paymentAttempts, chargeTransactions, highlightIds, findings = [], checkoutActions = [], notifications, tickets, onNavigateTab, purchaseId }) => {
+const PaymentsTable: React.FC<PaymentsTableProps> = ({ payments, paymentAttempts, chargeTransactions, highlightIds, findings = [], checkoutActions = [], auditTrail = [], notifications, tickets, onNavigateTab, purchaseId }) => {
   const [sortKey, setSortKey] = useState<SortKey>('dueDate');
   const [sortAsc, setSortAsc] = useState(true);
   const [showInactive, setShowInactive] = useState(false);
   const [expandedId, setExpandedId] = useState<number | null>(null);
 
   const highlightSet = useMemo(() => new Set(highlightIds || []), [highlightIds]);
+
+  // Map audit records by payment ID
+  const auditByPaymentId = useMemo(() => {
+    const map = new Map<number, PaymentAuditRecord[]>();
+    for (const a of auditTrail) {
+      const existing = map.get(a.paymentId) || [];
+      existing.push(a);
+      map.set(a.paymentId, existing);
+    }
+    return map;
+  }, [auditTrail]);
 
   // Map checkout actions by payment ID
   const checkoutByPaymentId = useMemo(() => {
@@ -520,6 +580,7 @@ const PaymentsTable: React.FC<PaymentsTableProps> = ({ payments, paymentAttempts
                         attempts={attemptsByPaymentId.get(p.id) || []}
                         transactions={txByPaymentId.get(p.id) || []}
                         checkoutActions={checkoutByPaymentId.get(p.id) || []}
+                        auditRecords={auditByPaymentId.get(p.id) || []}
                       />
                     </td>
                   </tr>
