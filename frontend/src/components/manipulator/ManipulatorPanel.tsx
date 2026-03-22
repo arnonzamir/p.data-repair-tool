@@ -57,9 +57,13 @@ const ManipulatorPanel: React.FC<ManipulatorPanelProps> = ({ purchaseId, onRefre
     checkApplicability();
   }, [checkApplicability]);
 
-  const handleSelect = (m: ManipulatorInfo) => {
+  const handleSelect = async (m: ManipulatorInfo) => {
     setSelected(m);
-    // Pre-fill suggested params from applicability check if available
+    setPhase('configure');
+    setPreview(null);
+    setResult(null);
+
+    // Pre-fill from existing applicability check
     const app = applicability[m.id];
     const suggested = app?.applicability?.suggestedParams || {};
     const initial: Record<string, any> = {};
@@ -67,9 +71,23 @@ const ManipulatorPanel: React.FC<ManipulatorPanelProps> = ({ purchaseId, onRefre
       initial[p.name] = suggested[p.name] ?? p.defaultValue ?? '';
     }
     setParams(initial);
-    setPhase('configure');
-    setPreview(null);
-    setResult(null);
+
+    // If no suggested params yet, trigger a fresh applicability check for this purchase
+    if (Object.keys(suggested).length === 0 && m.requiredParams.length > 0) {
+      try {
+        const fresh = await getApplicableManipulators(purchaseId);
+        const freshApp = fresh.find(a => a.manipulatorId === m.id);
+        if (freshApp?.applicability?.suggestedParams) {
+          const freshSuggested = freshApp.applicability.suggestedParams;
+          const updated: Record<string, any> = {};
+          for (const p of m.requiredParams) {
+            updated[p.name] = freshSuggested[p.name] ?? initial[p.name] ?? '';
+          }
+          setParams(updated);
+          setApplicability(prev => ({ ...prev, [m.id]: freshApp }));
+        }
+      } catch (_) { /* non-blocking */ }
+    }
   };
 
   const handlePreview = async () => {

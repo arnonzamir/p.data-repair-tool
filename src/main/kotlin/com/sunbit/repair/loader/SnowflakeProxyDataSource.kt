@@ -210,6 +210,18 @@ class ProxyResultSet(
     override fun getString(columnLabel: String): String? {
         val v = currentRow()[columnLabel.uppercase()]; wasNullFlag = v == null; return v?.toString()
     }
+    override fun getString(columnIndex: Int): String? {
+        if (columnIndex < 1 || columnIndex > columns.size) return null
+        return getString(columns[columnIndex - 1])
+    }
+    override fun getObject(columnIndex: Int): Any? {
+        if (columnIndex < 1 || columnIndex > columns.size) return null
+        val col = columns[columnIndex - 1]
+        val v = currentRow()[col]; wasNullFlag = v == null; return v
+    }
+    override fun getObject(columnLabel: String): Any? {
+        val v = currentRow()[columnLabel.uppercase()]; wasNullFlag = v == null; return v
+    }
     override fun getLong(columnLabel: String): Long {
         val v = currentRow()[columnLabel.uppercase()]; wasNullFlag = v == null
         return when (v) { is Number -> v.toLong(); is String -> v.toLongOrNull() ?: 0L; else -> 0L }
@@ -237,6 +249,33 @@ class ProxyResultSet(
     override fun wasNull(): Boolean = wasNullFlag
     override fun close() {}
     override fun isClosed(): Boolean = false
+    override fun getMetaData(): ResultSetMetaData = ProxyResultSetMetaData(columns)
+}
+
+class ProxyResultSetMetaData(private val columns: List<String>) : ResultSetMetaData {
+    override fun getColumnCount(): Int = columns.size
+    override fun getColumnName(column: Int): String = columns[column - 1]
+    override fun getColumnLabel(column: Int): String = columns[column - 1]
+    override fun getColumnTypeName(column: Int): String = "VARCHAR"
+    override fun getColumnType(column: Int): Int = java.sql.Types.VARCHAR
+    override fun isAutoIncrement(column: Int) = false
+    override fun isCaseSensitive(column: Int) = false
+    override fun isSearchable(column: Int) = true
+    override fun isCurrency(column: Int) = false
+    override fun isNullable(column: Int) = ResultSetMetaData.columnNullable
+    override fun isSigned(column: Int) = false
+    override fun getColumnDisplaySize(column: Int) = 255
+    override fun getSchemaName(column: Int) = ""
+    override fun getTableName(column: Int) = ""
+    override fun getCatalogName(column: Int) = ""
+    override fun getPrecision(column: Int) = 0
+    override fun getScale(column: Int) = 0
+    override fun getColumnClassName(column: Int) = "java.lang.String"
+    override fun isReadOnly(column: Int) = true
+    override fun isWritable(column: Int) = false
+    override fun isDefinitelyWritable(column: Int) = false
+    override fun <T : Any?> unwrap(iface: Class<T>?): T = throw UnsupportedOperationException()
+    override fun isWrapperFor(iface: Class<*>?) = false
 }
 
 // === Stub classes ===

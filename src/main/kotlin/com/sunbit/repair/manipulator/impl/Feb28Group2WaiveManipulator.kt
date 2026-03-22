@@ -66,10 +66,23 @@ class Feb28Group2WaiveManipulator(
         if (zeroed.isEmpty()) {
             return ApplicabilityResult(canApply = false, reason = "No zeroed payments in the Feb 27 incident window")
         }
+        val suggested = mutableMapOf<String, Any>()
+        if (zeroed.size == 1) {
+            val payment = zeroed.first()
+            suggested["paymentId"] = payment.id
+            // Try to look up original amount from audit trail
+            try {
+                val originalAmount = snowflakeLoader.loadOriginalPaymentAmount(payment.id)
+                if (originalAmount != null) {
+                    suggested["originalAmount"] = originalAmount
+                }
+            } catch (_: Exception) { /* non-blocking */ }
+        }
+
         return ApplicabilityResult(
             canApply = true,
             reason = "${zeroed.size} zeroed payment(s) in incident window: ${zeroed.map { "${it.id} (due ${it.dueDate})" }}",
-            suggestedParams = if (zeroed.size == 1) mapOf("paymentId" to zeroed.first().id) else emptyMap(),
+            suggestedParams = suggested,
         )
     }
 

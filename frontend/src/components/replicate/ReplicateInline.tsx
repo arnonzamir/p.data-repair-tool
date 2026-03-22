@@ -248,7 +248,23 @@ const ReplicateInline: React.FC<ReplicateInlineProps> = ({ purchaseId, onClose, 
 
         {existsCheck && !existsCheck.reachable && (
           <div className="exists-banner exists-unreachable">
-            Cannot reach {target} database. Existence check skipped.
+            <div>Cannot reach {target} database.</div>
+            {target === 'STAGING' && (
+              <div style={{ marginTop: 8, fontSize: 12, background: '#f5f5f5', padding: '8px 12px', borderRadius: 4, borderLeft: '3px solid #90a4ae' }}>
+                <div style={{ fontWeight: 600, marginBottom: 4 }}>To set up staging MySQL credentials:</div>
+                <div style={{ fontFamily: 'monospace', fontSize: 11, marginBottom: 2 }}>1. aws sso login --profile staging</div>
+                <div style={{ fontFamily: 'monospace', fontSize: 11, marginBottom: 2 }}>2. sunbit-cli mysql file-creds -d staging -m rw</div>
+                <div style={{ marginTop: 6, color: '#757575' }}>
+                  This creates ~/.sunbit/mysql-staging.json with temporary credentials (valid for a few hours).
+                  Re-run when they expire.
+                </div>
+              </div>
+            )}
+            {target === 'LOCAL' && (
+              <div style={{ marginTop: 4, fontSize: 12, color: '#757575' }}>
+                Make sure local MySQL is running at sunbit-mysql:30306.
+              </div>
+            )}
           </div>
         )}
 
