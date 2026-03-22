@@ -10,14 +10,18 @@ WARNINGS=0
 # -----------------------------------------------
 # 1. Snowflake user (mandatory)
 # -----------------------------------------------
-if [ -z "$SNOWFLAKE_USER" ]; then
+if [ -z "$SNOWFLAKE_USER" ] && [ -z "$SNOWFLAKE_PROXY_URL" ]; then
   echo ""
   echo "ERROR: SNOWFLAKE_USER is not set."
   echo "Run with: docker compose up (after creating .env)"
   echo "Or:       docker run -e SNOWFLAKE_USER=you@sunbit.com ..."
   exit 1
 fi
-echo "Snowflake user: $SNOWFLAKE_USER"
+if [ -n "$SNOWFLAKE_PROXY_URL" ]; then
+  echo "Snowflake:  via proxy at $SNOWFLAKE_PROXY_URL"
+else
+  echo "Snowflake:  $SNOWFLAKE_USER"
+fi
 
 # -----------------------------------------------
 # 2. Git auth for sync
