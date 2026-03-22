@@ -146,7 +146,7 @@ const ManipulatorPanel: React.FC<ManipulatorPanelProps> = ({ purchaseId, onRefre
     if (!byCategory[cat]) byCategory[cat] = [];
     byCategory[cat].push(m);
   }
-  const categoryOrder = ['STRUCTURAL', 'FINANCIAL', 'REMEDIATION', 'CHARGEBACK'];
+  const categoryOrder = ['REMEDIATION', 'STRUCTURAL', 'FINANCIAL', 'CHARGEBACK'];
 
   // -- List phase --
   if (phase === 'list') {
@@ -235,10 +235,18 @@ const ManipulatorPanel: React.FC<ManipulatorPanelProps> = ({ purchaseId, onRefre
         </div>
 
         <div className="card" style={{ marginBottom: 12 }}>
-          <div style={{ fontSize: 13, marginBottom: 8 }}>{renderRichText(selected.description)}</div>
+          <div style={{ fontSize: 13, marginBottom: 8 }}><strong>{selected.description}</strong></div>
+
+          {selected.detailedDescription && selected.detailedDescription !== selected.description && (
+            <div className="rule-explanation-content" style={{ marginBottom: 8 }}>
+              {renderMarkdownBlock(selected.detailedDescription)}
+            </div>
+          )}
 
           {app && (
-            <div style={{ fontSize: 12, color: app.applicability?.canApply ? '#2e7d32' : '#e65100', marginBottom: 8 }}>
+            <div style={{ fontSize: 12, padding: '6px 10px', borderRadius: 4, marginBottom: 4,
+              background: app.applicability?.canApply ? '#e8f5e9' : '#fff3e0',
+              color: app.applicability?.canApply ? '#2e7d32' : '#e65100' }}>
               {app.applicability?.canApply ? 'Applicable: ' : 'Not applicable: '}
               {app.applicability?.reason}
             </div>
@@ -246,27 +254,42 @@ const ManipulatorPanel: React.FC<ManipulatorPanelProps> = ({ purchaseId, onRefre
         </div>
 
         {/* Parameters */}
-        {selected.requiredParams.length > 0 && (
-          <div className="card" style={{ marginBottom: 12 }}>
-            <div style={{ fontSize: 13, marginBottom: 8 }}><strong>Parameters</strong></div>
-            {selected.requiredParams.map(p => (
-              <div key={p.name} style={{ marginBottom: 8 }}>
+        <div className="card" style={{ marginBottom: 12 }}>
+          <div style={{ fontSize: 13, marginBottom: 8 }}><strong>Parameters</strong></div>
+          {selected.requiredParams.length === 0 && (
+            <div style={{ fontSize: 12, color: '#757575' }}>No parameters required.</div>
+          )}
+          {selected.requiredParams.map(p => {
+            const suggested = app?.applicability?.suggestedParams?.[p.name];
+            return (
+              <div key={p.name} style={{ marginBottom: 10 }}>
                 <label style={{ fontSize: 12, display: 'block', marginBottom: 2 }}>
-                  <span className="mono">{p.name}</span>
+                  <span className="mono" style={{ fontWeight: 600 }}>{p.name}</span>
                   <span style={{ color: '#9e9e9e' }}> ({p.type.toLowerCase()}{p.required ? ', required' : ''})</span>
                 </label>
-                <div style={{ fontSize: 11, color: '#757575', marginBottom: 2 }}>{p.description}</div>
-                <input
-                  type="text"
-                  value={String(params[p.name] ?? '')}
-                  onChange={e => setParams({ ...params, [p.name]: e.target.value })}
-                  style={{ fontSize: 12, padding: '4px 8px', width: 300 }}
-                  placeholder={p.defaultValue != null ? `Default: ${p.defaultValue}` : ''}
-                />
+                <div style={{ fontSize: 11, color: '#546e7a', marginBottom: 3 }}>{p.description}</div>
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                  <input
+                    type="text"
+                    value={String(params[p.name] ?? '')}
+                    onChange={e => setParams({ ...params, [p.name]: e.target.value })}
+                    style={{ fontSize: 12, padding: '4px 8px', width: 300, border: '1px solid #ccc', borderRadius: 3 }}
+                    placeholder={p.defaultValue != null ? `Default: ${p.defaultValue}` : ''}
+                  />
+                  {suggested != null && String(suggested) !== String(params[p.name]) && (
+                    <button
+                      className="btn btn-tiny"
+                      onClick={() => setParams({ ...params, [p.name]: suggested })}
+                      title={`Use suggested value: ${suggested}`}
+                    >
+                      Use suggested: {String(suggested).substring(0, 20)}
+                    </button>
+                  )}
+                </div>
               </div>
-            ))}
-          </div>
-        )}
+            );
+          })}
+        </div>
 
         {/* Actions */}
         <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap', alignItems: 'center' }}>
