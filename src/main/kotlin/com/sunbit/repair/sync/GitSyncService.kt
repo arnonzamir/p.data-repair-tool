@@ -123,6 +123,18 @@ class GitSyncService(
                 }
             }
 
+            // Commit any pending changes before pulling (e.g., from initial export)
+            try {
+                val pending = gitOutput("status", "--porcelain", dir = repoDir)
+                if (pending.isNotBlank()) {
+                    git("add", "-A", dir = repoDir)
+                    git("commit", "-m", "sync: pending local changes", dir = repoDir)
+                    git("push", "origin", branch, dir = repoDir)
+                }
+            } catch (e: Exception) {
+                log.warn("[GitSyncService][pollAndRefresh] Commit pending changes failed: {}", e.message)
+            }
+
             // Snapshot current files before pull
             val beforeHashes = syncTables.associate { it.name to fileHash(File(syncDir, "${it.name}.sql")) }
 
