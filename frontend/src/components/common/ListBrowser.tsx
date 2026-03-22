@@ -43,6 +43,8 @@ const ListBrowser: React.FC<ListBrowserProps> = ({ activePurchaseId, onSelectPur
   const [newListName, setNewListName] = useState('');
   const [loading, setLoading] = useState(false);
   const [updatingStatus, setUpdatingStatus] = useState<number | null>(null);
+  const [searchPid, setSearchPid] = useState('');
+  const [filterStatus, setFilterStatus] = useState<string>('');
 
   const refreshLists = useCallback(async () => {
     try {
@@ -208,13 +210,58 @@ const ListBrowser: React.FC<ListBrowserProps> = ({ activePurchaseId, onSelectPur
         {/* Middle column: purchases in selected list */}
         <div className="list-purchases-column">
           {selectedList && (
-            <div className="list-purchases-title">{selectedList.name}</div>
+            <>
+              <div className="list-purchases-title">{selectedList.name}</div>
+              <div style={{ display: 'flex', gap: 4, marginBottom: 6, flexWrap: 'wrap' }}>
+                <input
+                  type="text"
+                  value={searchPid}
+                  onChange={e => setSearchPid(e.target.value)}
+                  placeholder="Search ID..."
+                  style={{ fontSize: 11, padding: '2px 6px', width: 90 }}
+                />
+                <select
+                  value={filterStatus}
+                  onChange={e => setFilterStatus(e.target.value)}
+                  style={{ fontSize: 11, padding: '2px 4px' }}
+                >
+                  <option value="">All statuses</option>
+                  <option value="not-seen">not-seen</option>
+                  <option value="at-work">at-work</option>
+                  <option value="done">done</option>
+                  <option value="need-fixing">need-fixing</option>
+                </select>
+                {(searchPid || filterStatus) && (
+                  <>
+                    <button className="btn btn-tiny" onClick={() => { setSearchPid(''); setFilterStatus(''); }}>Clear</button>
+                    <span style={{ fontSize: 10, color: '#757575', alignSelf: 'center' }}>
+                      {selectedList.purchaseIds.filter(pid => {
+                        if (searchPid && !String(pid).includes(searchPid)) return false;
+                        if (filterStatus) {
+                          const status = statuses[pid]?.status || 'not-seen';
+                          if (status !== filterStatus) return false;
+                        }
+                        return true;
+                      }).length} / {selectedList.purchaseIds.length}
+                    </span>
+                  </>
+                )}
+              </div>
+            </>
           )}
           {!selectedList && <p className="text-muted">Select a list</p>}
           {selectedList && selectedList.purchaseIds.length === 0 && (
             <p className="text-muted">Empty list. Use "+ Add current" while viewing a purchase.</p>
           )}
-          {selectedList && selectedList.purchaseIds.map((pid) => {
+          {selectedList && selectedList.purchaseIds.filter((pid) => {
+            if (searchPid && !String(pid).includes(searchPid)) return false;
+            if (filterStatus) {
+              const rs = statuses[pid];
+              const status = rs?.status || 'not-seen';
+              if (status !== filterStatus) return false;
+            }
+            return true;
+          }).map((pid) => {
             const rs = statuses[pid];
             const statusStr = rs?.status || 'not-seen';
             const isWorkedByOther = statusStr === 'at-work' && rs?.updatedBy && rs.updatedBy !== operator;
