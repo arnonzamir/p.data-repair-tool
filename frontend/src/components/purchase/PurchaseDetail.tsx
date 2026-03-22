@@ -15,6 +15,7 @@ import ReplicateInline from '../replicate/ReplicateInline';
 import NotesAndLists from './NotesAndLists';
 import DisbursalsTab from './DisbursalsTab';
 import ManipulatorPanel from '../manipulator/ManipulatorPanel';
+import IncidentDataPanel from './IncidentDataPanel';
 
 type TabKey = 'payments' | 'findings' | 'money' | 'charges' | 'disbursals' | 'notifications' | 'actions' | 'tickets' | 'timeline' | 'manipulators';
 
@@ -336,6 +337,9 @@ const PurchaseDetail: React.FC<PurchaseDetailProps> = ({ snapshot, analysis, rep
           </div>
         </div>
       </div>
+
+      {/* Incident data (shows only if data exists for this purchase) */}
+      <IncidentDataPanel purchaseId={snapshot.purchaseId} />
 
       {/* Tabs */}
       <div className="tab-bar">

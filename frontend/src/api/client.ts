@@ -263,6 +263,13 @@ export const enableManipulator = (manipulatorId: string) =>
 export const disableManipulator = (manipulatorId: string) =>
   apiFetch<any>(`/api/v1/manipulators/toggle/${manipulatorId}/disable`, { method: 'PUT' });
 
+// Incident data
+export const getLoanPerformance = (purchaseId: number) =>
+  apiFetch<Record<string, any> | null>(`/api/v1/incident-data/loan-performance/${purchaseId}`);
+
+export const getCheckoutActions = (purchaseId: number) =>
+  apiFetch<Record<string, any>[]>(`/api/v1/incident-data/checkout-actions/${purchaseId}`);
+
 // Sync (pull latest from git)
 export const pullSync = () =>
   apiFetch<any>('/api/v1/sync/pull', { method: 'POST' });
