@@ -32,6 +32,9 @@ const ManipulatorPanel: React.FC<ManipulatorPanelProps> = ({ purchaseId, onRefre
   const [result, setResult] = useState<ManipulatorRunResult | null>(null);
   const [target, setTarget] = useState<string>('LOCAL');
   const [params, setParams] = useState<Record<string, any>>({});
+  const [showCurl, setShowCurl] = useState(false);
+  const [curlText, setCurlText] = useState('');
+  const [curlCopied, setCurlCopied] = useState(false);
 
   // Load all manipulators instantly (from registry, no Snowflake)
   useEffect(() => {
@@ -103,6 +106,30 @@ const ManipulatorPanel: React.FC<ManipulatorPanelProps> = ({ purchaseId, onRefre
     setParams({});
     onRefresh();
     checkApplicability();
+  };
+
+  const generateCurl = () => {
+    if (!selected) return;
+    const baseUrl = window.location.origin;
+    const operator = localStorage.getItem('operator') || 'anonymous';
+    const body = JSON.stringify({ manipulatorId: selected.id, params }, null, 2);
+    const curl = [
+      `curl -X POST '${baseUrl}/api/v1/manipulators/${purchaseId}/execute'`,
+      `  -H 'Content-Type: application/json'`,
+      `  -H 'X-Operator: ${operator}'`,
+      `  -H 'X-Target: ${target}'`,
+      `  -d '${body}'`,
+    ].join(' \\\n');
+    setCurlText(curl);
+    setShowCurl(true);
+    setCurlCopied(false);
+  };
+
+  const copyCurl = () => {
+    navigator.clipboard.writeText(curlText).then(() => {
+      setCurlCopied(true);
+      setTimeout(() => setCurlCopied(false), 2000);
+    });
   };
 
   const handleBack = () => {
@@ -241,8 +268,8 @@ const ManipulatorPanel: React.FC<ManipulatorPanelProps> = ({ purchaseId, onRefre
           </div>
         )}
 
-        {/* Preview */}
-        <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+        {/* Actions */}
+        <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap', alignItems: 'center' }}>
           <button className="btn" onClick={handlePreview} disabled={previewLoading}>
             {previewLoading ? 'Loading preview...' : 'Preview'}
           </button>
@@ -253,12 +280,39 @@ const ManipulatorPanel: React.FC<ManipulatorPanelProps> = ({ purchaseId, onRefre
           >
             Execute on {target}
           </button>
+          <button className="btn btn-small" onClick={generateCurl} style={{ background: '#37474f', color: '#fff' }}>
+            Copy as cURL
+          </button>
           {target === 'PROD' && (
             <span style={{ fontSize: 11, color: '#c62828', alignSelf: 'center' }}>
               This will run against production
             </span>
           )}
         </div>
+
+        {/* cURL modal */}
+        {showCurl && (
+          <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+            onClick={() => setShowCurl(false)}>
+            <div style={{ background: '#fff', borderRadius: 8, padding: 20, maxWidth: 700, width: '90%', maxHeight: '80vh', overflow: 'auto' }}
+              onClick={e => e.stopPropagation()}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                <h3 style={{ margin: 0 }}>cURL Command</h3>
+                <button className="btn btn-small" onClick={() => setShowCurl(false)}>Close</button>
+              </div>
+              <textarea
+                value={curlText}
+                onChange={e => setCurlText(e.target.value)}
+                style={{ width: '100%', height: 200, fontFamily: 'monospace', fontSize: 12, padding: 10, border: '1px solid #e0e0e0', borderRadius: 4, resize: 'vertical' }}
+              />
+              <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+                <button className="btn" onClick={copyCurl} style={{ background: '#1565c0', color: '#fff' }}>
+                  {curlCopied ? 'Copied' : 'Copy to clipboard'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {preview && (
           <div className="card" style={{ marginBottom: 12 }}>
