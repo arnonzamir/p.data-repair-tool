@@ -7,6 +7,7 @@ interface PaymentsTabProps {
   snapshot: PurchaseSnapshot;
   highlightIds: number[];
   findings?: Finding[];
+  checkoutActions?: Record<string, any>[];
   onNavigateTab?: (tab: string, itemId?: number | string) => void;
 }
 
@@ -175,7 +176,7 @@ function DisputedPaymentsTable({ payments }: { payments: Payment[] }) {
   );
 }
 
-const PaymentsTab: React.FC<PaymentsTabProps> = ({ snapshot, highlightIds, findings, onNavigateTab }) => {
+const PaymentsTab: React.FC<PaymentsTabProps> = ({ snapshot, highlightIds, findings, checkoutActions = [], onNavigateTab }) => {
   const handleCommsNavigate = (tab: 'notifications' | 'tickets', itemId: number | string) => {
     if (onNavigateTab) onNavigateTab(tab, itemId);
   };
@@ -258,6 +259,7 @@ const PaymentsTab: React.FC<PaymentsTabProps> = ({ snapshot, highlightIds, findi
         chargeTransactions={snapshot.chargeTransactions}
         highlightIds={highlightIds}
         findings={findings}
+        checkoutActions={checkoutActions}
         notifications={snapshot.notifications}
         tickets={snapshot.supportTickets}
         onNavigateTab={onNavigateTab}

@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import type { PurchaseSnapshot, AnalysisResult, SuggestedRepair, Finding, ReplicationRecord } from '../../types/domain';
-import { rollbackReplication, getConfig, getReviewStatus, ReviewStatus } from '../../api/client';
+import { rollbackReplication, getConfig, getReviewStatus, ReviewStatus, getCheckoutActions } from '../../api/client';
 import PaymentsTable from './PaymentsTable';
 import PaymentsTab from './PaymentsTab';
 import PurchaseTimeline from './PurchaseTimeline';
@@ -70,6 +70,7 @@ const PurchaseDetail: React.FC<PurchaseDetailProps> = ({ snapshot, analysis, rep
   const [rollingBack, setRollingBack] = useState<string | null>(null);
   const [ccUrls, setCcUrls] = useState<Record<string, string>>({});
   const [reviewState, setReviewState] = useState<ReviewStatus | null>(null);
+  const [checkoutActions, setCheckoutActions] = useState<Record<string, any>[]>([]);
 
   useEffect(() => { getCallCenterUrls().then(setCcUrls); }, []);
 
@@ -77,6 +78,9 @@ const PurchaseDetail: React.FC<PurchaseDetailProps> = ({ snapshot, analysis, rep
     getReviewStatus(snapshot.purchaseId)
       .then(setReviewState)
       .catch(() => setReviewState(null));
+    getCheckoutActions(snapshot.purchaseId)
+      .then(setCheckoutActions)
+      .catch(() => setCheckoutActions([]));
   }, [snapshot.purchaseId]);
 
   const handleRollback = useCallback(async (r: ReplicationRecord) => {
@@ -357,13 +361,14 @@ const PurchaseDetail: React.FC<PurchaseDetailProps> = ({ snapshot, analysis, rep
       {/* Tab Content */}
       <div className="tab-content">
         {activeTab === 'timeline' && (
-          <PurchaseTimeline snapshot={snapshot} />
+          <PurchaseTimeline snapshot={snapshot} checkoutActions={checkoutActions} />
         )}
         {activeTab === 'payments' && (
           <PaymentsTab
             snapshot={snapshot}
             highlightIds={highlightIds}
             findings={analysis.findings}
+            checkoutActions={checkoutActions}
             onNavigateTab={(tab) => setActiveTab(tab as TabKey)}
           />
         )}
@@ -375,6 +380,7 @@ const PurchaseDetail: React.FC<PurchaseDetailProps> = ({ snapshot, analysis, rep
             events={snapshot.unifiedChargeEvents || []}
             notifications={snapshot.notifications}
             tickets={snapshot.supportTickets}
+            checkoutActions={checkoutActions}
             onNavigateTab={(tab) => setActiveTab(tab as TabKey)}
             purchaseId={snapshot.purchaseId}
           />

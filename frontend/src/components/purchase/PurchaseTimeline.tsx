@@ -3,6 +3,7 @@ import type { PurchaseSnapshot } from '../../types/domain';
 
 interface PurchaseTimelineProps {
   snapshot: PurchaseSnapshot;
+  checkoutActions?: Record<string, any>[];
 }
 
 // ---------------------------------------------------------------------------
@@ -115,7 +116,7 @@ const CATEGORY_COLORS: Record<EventCategory, string> = {
 // Build unified timeline
 // ---------------------------------------------------------------------------
 
-function buildTimeline(snapshot: PurchaseSnapshot): TimelineEvent[] {
+function buildTimeline(snapshot: PurchaseSnapshot, checkoutActions: Record<string, any>[] = []): TimelineEvent[] {
   const events: TimelineEvent[] = [];
 
   // 1. Payment actions (loan management events)
@@ -344,6 +345,21 @@ function buildTimeline(snapshot: PurchaseSnapshot): TimelineEvent[] {
     });
   }
 
+  // Checkout.com processor actions
+  for (const ca of checkoutActions) {
+    if (!ca.action_date) continue;
+    const isRefund = ca.action_type === 'Refund';
+    events.push({
+      timestamp: ca.action_date,
+      displayTime: ca.action_date?.substring(0, 19) || '',
+      category: isRefund ? 'refund' as EventCategory : 'charge' as EventCategory,
+      title: `Checkout.com ${ca.action_type}`,
+      detail: `Payment #${ca.payment_id || '?'}, ${formatAmount(ca.amount)} (source: ${ca.source || '?'})`,
+      customerVisible: true,
+      amount: formatAmount(ca.amount),
+    });
+  }
+
   // Sort chronologically
   events.sort((a, b) => a.timestamp.localeCompare(b.timestamp));
 
@@ -354,8 +370,8 @@ function buildTimeline(snapshot: PurchaseSnapshot): TimelineEvent[] {
 // Component
 // ---------------------------------------------------------------------------
 
-const PurchaseTimeline: React.FC<PurchaseTimelineProps> = ({ snapshot }) => {
-  const events = useMemo(() => buildTimeline(snapshot), [snapshot]);
+const PurchaseTimeline: React.FC<PurchaseTimelineProps> = ({ snapshot, checkoutActions = [] }) => {
+  const events = useMemo(() => buildTimeline(snapshot, checkoutActions), [snapshot, checkoutActions]);
   const [showInternal, setShowInternal] = React.useState(false);
 
   const displayed = showInternal ? events : events.filter((e) => e.customerVisible);

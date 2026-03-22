@@ -48,7 +48,7 @@ if [ ! -f "$HOME/.sunbit/snowflake_token" ]; then
 
   if ! python3 -c "import snowflake.connector" 2>/dev/null; then
     echo "Installing snowflake-connector-python..."
-    pip install --quiet snowflake-connector-python 2>/dev/null
+    pip install --quiet snowflake-connector-python keyring 2>/dev/null
   fi
 
   if python3 -c "import snowflake.connector" 2>/dev/null; then

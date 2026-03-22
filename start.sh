@@ -33,7 +33,7 @@ source "$VENV_DIR/bin/activate"
 # Install snowflake connector if needed
 if ! python3 -c "import snowflake.connector" 2>/dev/null; then
   echo "Installing snowflake-connector-python (one-time)..."
-  pip install --quiet snowflake-connector-python
+  pip install --quiet snowflake-connector-python keyring
 fi
 
 # Get Snowflake user

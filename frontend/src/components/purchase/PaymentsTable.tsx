@@ -8,6 +8,7 @@ interface PaymentsTableProps {
   chargeTransactions?: ChargeTransaction[];
   highlightIds?: number[];
   findings?: Finding[];
+  checkoutActions?: Record<string, any>[];
   notifications?: NotificationSummary;
   tickets?: SupportTicket[];
   onNavigateTab?: (tab: string) => void;
@@ -88,11 +89,13 @@ function PaymentDetailPanel({
   allPayments,
   attempts,
   transactions,
+  checkoutActions = [],
 }: {
   payment: Payment;
   allPayments: Payment[];
   attempts: PaymentAttempt[];
   transactions: ChargeTransaction[];
+  checkoutActions?: Record<string, any>[];
 }) {
   // Find children (payments whose directParentId or originalPaymentId points here)
   const children = allPayments.filter(
@@ -243,6 +246,28 @@ function PaymentDetailPanel({
         </div>
       )}
 
+      {/* Checkout.com actions */}
+      {checkoutActions.length > 0 && (
+        <div className="panel-section">
+          <h5>Checkout.com Actions ({checkoutActions.length})</h5>
+          <table className="table table-compact">
+            <thead>
+              <tr><th>Date</th><th>Action</th><th>Amount</th><th>Source</th></tr>
+            </thead>
+            <tbody>
+              {checkoutActions.map((ca, i) => (
+                <tr key={i}>
+                  <td className="mono">{ca.action_date || '-'}</td>
+                  <td style={{ color: ca.action_type === 'Refund' ? '#2e7d32' : '#1565c0', fontWeight: 600 }}>{ca.action_type}</td>
+                  <td>{'$' + Number(ca.amount || 0).toFixed(2)}</td>
+                  <td>{ca.source || '-'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
       {/* Raw fields */}
       <div className="panel-section">
         <h5>Raw Fields</h5>
@@ -265,13 +290,27 @@ function PaymentDetailPanel({
   );
 }
 
-const PaymentsTable: React.FC<PaymentsTableProps> = ({ payments, paymentAttempts, chargeTransactions, highlightIds, findings = [], notifications, tickets, onNavigateTab, purchaseId }) => {
+const PaymentsTable: React.FC<PaymentsTableProps> = ({ payments, paymentAttempts, chargeTransactions, highlightIds, findings = [], checkoutActions = [], notifications, tickets, onNavigateTab, purchaseId }) => {
   const [sortKey, setSortKey] = useState<SortKey>('dueDate');
   const [sortAsc, setSortAsc] = useState(true);
   const [showInactive, setShowInactive] = useState(false);
   const [expandedId, setExpandedId] = useState<number | null>(null);
 
   const highlightSet = useMemo(() => new Set(highlightIds || []), [highlightIds]);
+
+  // Map checkout actions by payment ID
+  const checkoutByPaymentId = useMemo(() => {
+    const map = new Map<number, Record<string, any>[]>();
+    for (const ca of checkoutActions) {
+      if (ca.payment_id) {
+        const pid = Number(ca.payment_id);
+        const existing = map.get(pid) || [];
+        existing.push(ca);
+        map.set(pid, existing);
+      }
+    }
+    return map;
+  }, [checkoutActions]);
 
   // Map each payment ID to its findings (for inline display)
   const findingsByPaymentId = useMemo(() => {
@@ -480,6 +519,7 @@ const PaymentsTable: React.FC<PaymentsTableProps> = ({ payments, paymentAttempts
                         allPayments={payments}
                         attempts={attemptsByPaymentId.get(p.id) || []}
                         transactions={txByPaymentId.get(p.id) || []}
+                        checkoutActions={checkoutByPaymentId.get(p.id) || []}
                       />
                     </td>
                   </tr>

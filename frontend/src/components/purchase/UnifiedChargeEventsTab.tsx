@@ -94,11 +94,12 @@ interface UnifiedChargeEventsTabProps {
   events: UnifiedChargeEvent[];
   notifications?: NotificationSummary;
   tickets?: SupportTicket[];
+  checkoutActions?: Record<string, any>[];
   onNavigateTab?: (tab: string) => void;
   purchaseId?: number;
 }
 
-const UnifiedChargeEventsTab: React.FC<UnifiedChargeEventsTabProps> = ({ events, notifications, tickets, onNavigateTab, purchaseId }) => {
+const UnifiedChargeEventsTab: React.FC<UnifiedChargeEventsTabProps> = ({ events, notifications, tickets, checkoutActions = [], onNavigateTab, purchaseId }) => {
   const [expandedIndex, setExpandedIndex] = useState<number | null>(null);
 
   const toggleExpand = (index: number) => {
@@ -108,8 +109,30 @@ const UnifiedChargeEventsTab: React.FC<UnifiedChargeEventsTabProps> = ({ events,
   return (
     <div className="charge-events-table">
       <div className="table-controls">
-        <span className="table-count">{events.length} charge events</span>
+        <span className="table-count">{events.length} charge events{checkoutActions.length > 0 ? ` + ${checkoutActions.length} Checkout.com actions` : ''}</span>
       </div>
+
+      {checkoutActions.length > 0 && (
+        <div className="card" style={{ marginBottom: 12 }}>
+          <div style={{ fontSize: 12, marginBottom: 6 }}><strong>Checkout.com Processor Actions</strong></div>
+          <table className="table table-compact">
+            <thead>
+              <tr><th>Date</th><th>Action</th><th>Amount</th><th>Payment ID</th><th>Source</th></tr>
+            </thead>
+            <tbody>
+              {checkoutActions.map((ca, i) => (
+                <tr key={i}>
+                  <td className="mono" style={{ fontSize: 11 }}>{ca.action_date || '-'}</td>
+                  <td style={{ color: ca.action_type === 'Refund' ? '#2e7d32' : '#1565c0', fontWeight: 600, fontSize: 11 }}>{ca.action_type}</td>
+                  <td style={{ fontSize: 11 }}>{'$' + Number(ca.amount || 0).toFixed(2)}</td>
+                  <td className="mono" style={{ fontSize: 11 }}>{ca.payment_id || '-'}</td>
+                  <td style={{ fontSize: 11, color: '#757575' }}>{ca.source || '-'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
 
       <table className="table" role="table">
         <thead>
