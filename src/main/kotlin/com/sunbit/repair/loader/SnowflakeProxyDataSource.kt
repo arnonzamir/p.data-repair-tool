@@ -31,15 +31,6 @@ class SnowflakeProxyConfig {
 
     private val log = LoggerFactory.getLogger(SnowflakeProxyConfig::class.java)
 
-    @Bean("snowflakeProxyDataSource")
-    fun proxyDataSource(
-        @Value("\${snowflake.proxy-url:}") proxyUrl: String,
-    ): DataSource? {
-        if (proxyUrl.isBlank()) return null
-        log.info("[SnowflakeProxyConfig] Using Snowflake HTTP proxy at {}", proxyUrl)
-        return ProxyDataSource(proxyUrl)
-    }
-
     @Bean("snowflakeJdbcTemplate")
     @Primary
     fun proxyOrDirectJdbcTemplate(

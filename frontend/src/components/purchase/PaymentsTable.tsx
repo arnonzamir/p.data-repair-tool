@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import type { Payment, PaymentAttempt, ChargeTransaction, NotificationSummary, SupportTicket, Finding, PaymentAuditRecord } from '../../types/domain';
+import type { Payment, PaymentAttempt, ChargeTransaction, ChargeServiceAttempt, NotificationSummary, SupportTicket, Finding, PaymentAuditRecord } from '../../types/domain';
 import RelatedCommsTooltip, { findRelatedComms } from '../common/RelatedCommsTooltip';
 
 interface PaymentsTableProps {
@@ -10,6 +10,7 @@ interface PaymentsTableProps {
   findings?: Finding[];
   checkoutActions?: Record<string, any>[];
   auditTrail?: PaymentAuditRecord[];
+  chargeServiceAttempts?: ChargeServiceAttempt[];
   notifications?: NotificationSummary;
   tickets?: SupportTicket[];
   onNavigateTab?: (tab: string) => void;
@@ -339,13 +340,37 @@ function PaymentDetailPanel({
   );
 }
 
-const PaymentsTable: React.FC<PaymentsTableProps> = ({ payments, paymentAttempts, chargeTransactions, highlightIds, findings = [], checkoutActions = [], auditTrail = [], notifications, tickets, onNavigateTab, purchaseId }) => {
+const PaymentsTable: React.FC<PaymentsTableProps> = ({ payments, paymentAttempts, chargeTransactions, highlightIds, findings = [], checkoutActions = [], auditTrail = [], chargeServiceAttempts = [], notifications, tickets, onNavigateTab, purchaseId }) => {
   const [sortKey, setSortKey] = useState<SortKey>('dueDate');
   const [sortAsc, setSortAsc] = useState(true);
   const [showInactive, setShowInactive] = useState(false);
   const [expandedId, setExpandedId] = useState<number | null>(null);
 
   const highlightSet = useMemo(() => new Set(highlightIds || []), [highlightIds]);
+
+  // Map charge service attempts by payment ID (via paymentAttempts.processorTxId -> CSA.id)
+  const paymentMethodByPaymentId = useMemo(() => {
+    const map = new Map<number, string>();
+    // Build CSA lookup by ID
+    const csaById = new Map<number, ChargeServiceAttempt>();
+    for (const csa of chargeServiceAttempts) {
+      csaById.set(csa.id, csa);
+    }
+    // Match payment -> attempt -> CSA -> processor
+    for (const attempt of (paymentAttempts || [])) {
+      if (attempt.processorTxId && attempt.status === 0) {
+        const csaId = parseInt(attempt.processorTxId, 10);
+        const csa = csaById.get(csaId);
+        if (csa?.paymentProcessor) {
+          const method = csa.paymentProcessor === 'CHECKOUT' ? 'Debit card' :
+            csa.paymentProcessor === 'RCC_SERVICE' ? 'RCC' :
+            csa.paymentProcessor || 'Unknown';
+          map.set(attempt.paymentId, method);
+        }
+      }
+    }
+    return map;
+  }, [paymentAttempts, chargeServiceAttempts]);
 
   // Map audit records by payment ID
   const auditByPaymentId = useMemo(() => {
@@ -488,6 +513,7 @@ const PaymentsTable: React.FC<PaymentsTableProps> = ({ payments, paymentAttempts
             <th>Remaining Principal</th>
             <th>Type</th>
             <th>Source</th>
+            <th>Method</th>
             <th>Change Indicator</th>
             <th>Status</th>
             <th>Issues</th>
@@ -544,6 +570,7 @@ const PaymentsTable: React.FC<PaymentsTableProps> = ({ payments, paymentAttempts
                       </span>
                     ) : '-'}
                   </td>
+                  <td style={{ fontSize: 11 }}>{paymentMethodByPaymentId.get(p.id) || '-'}</td>
                   <td>{p.changeIndicatorName || p.changeIndicator}</td>
                   <td>
                     <span className={`badge ${getStatusClass(p.computedStatus)}`}>
@@ -573,7 +600,7 @@ const PaymentsTable: React.FC<PaymentsTableProps> = ({ payments, paymentAttempts
                 </tr>
                 {isExpanded && (
                   <tr className="detail-row">
-                    <td colSpan={11}>
+                    <td colSpan={12}>
                       <PaymentDetailPanel
                         payment={p}
                         allPayments={payments}
@@ -590,7 +617,7 @@ const PaymentsTable: React.FC<PaymentsTableProps> = ({ payments, paymentAttempts
           })}
           {sorted.length === 0 && (
             <tr>
-              <td colSpan={11} className="empty-row">No payments to display</td>
+              <td colSpan={12} className="empty-row">No payments to display</td>
             </tr>
           )}
         </tbody>
