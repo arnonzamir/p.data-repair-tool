@@ -1,6 +1,7 @@
 package com.sunbit.repair.manipulator
 
 import com.sunbit.repair.domain.*
+import com.sunbit.repair.loader.PurchaseCacheService
 import com.sunbit.repair.loader.PurchaseLoaderService
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
@@ -8,12 +9,14 @@ import java.time.Instant
 
 /**
  * Orchestrates manipulator execution: single runs and multi-step flows.
- * Handles the load -> canApply -> execute -> reload -> verify lifecycle.
+ * Uses cached snapshots for read operations (applicability, preview).
+ * Only loads fresh from Snowflake when executing and verifying.
  */
 @Service
 class ManipulatorOrchestrator(
     private val registry: ManipulatorRegistry,
     private val loaderService: PurchaseLoaderService,
+    private val cacheService: PurchaseCacheService,
 ) {
     private val log = LoggerFactory.getLogger(ManipulatorOrchestrator::class.java)
 
@@ -22,7 +25,7 @@ class ManipulatorOrchestrator(
      */
     fun getApplicable(purchaseId: Long): List<ApplicableManipulator> {
         log.info("[ManipulatorOrchestrator][getApplicable] Checking applicability for purchase {}", purchaseId)
-        val snapshot = loaderService.loadPurchase(purchaseId)
+        val snapshot = getCachedOrLoad(purchaseId)
         return registry.getEnabled().mapNotNull { m ->
             try {
                 val result = m.canApply(snapshot)
@@ -51,7 +54,7 @@ class ManipulatorOrchestrator(
             purchaseId, manipulatorId,
         )
         val manipulator = registry.getById(manipulatorId)
-        val snapshot = loaderService.loadPurchase(purchaseId)
+        val snapshot = getCachedOrLoad(purchaseId)
         return manipulator.preview(snapshot, params)
     }
 
@@ -70,7 +73,7 @@ class ManipulatorOrchestrator(
             purchaseId, manipulatorId, params,
         )
         val manipulator = registry.getById(manipulatorId)
-        val snapshotBefore = loaderService.loadPurchase(purchaseId)
+        val snapshotBefore = getCachedOrLoad(purchaseId)
 
         // Pre-check
         val applicability = manipulator.canApply(snapshotBefore)
@@ -145,7 +148,7 @@ class ManipulatorOrchestrator(
             )
 
             val manipulator = registry.getById(step.manipulatorId)
-            val snapshot = loaderService.loadPurchase(flow.purchaseId)
+            val snapshot = getCachedOrLoad(flow.purchaseId)
 
             // Check applicability
             val applicability = manipulator.canApply(snapshot)
@@ -209,6 +212,26 @@ class ManipulatorOrchestrator(
             abortedAtStep = abortedAtStep,
             abortReason = abortReason,
         )
+    }
+
+    /**
+     * Use cached snapshot if available, otherwise load from Snowflake.
+     * For read-only operations (applicability, preview) the cache is sufficient.
+     */
+    private fun getCachedOrLoad(purchaseId: Long): PurchaseSnapshot {
+        return try {
+            val cached = cacheService.getSnapshot(purchaseId, forceRefresh = false)
+            if (cached != null) {
+                log.debug("[ManipulatorOrchestrator][getCachedOrLoad] Using cached snapshot for purchase {}", purchaseId)
+                cached.snapshot
+            } else {
+                log.info("[ManipulatorOrchestrator][getCachedOrLoad] No cache for purchase {}, loading from Snowflake", purchaseId)
+                loaderService.loadPurchase(purchaseId)
+            }
+        } catch (e: Exception) {
+            log.info("[ManipulatorOrchestrator][getCachedOrLoad] Cache miss for purchase {}, loading from Snowflake", purchaseId)
+            loaderService.loadPurchase(purchaseId)
+        }
     }
 }
 

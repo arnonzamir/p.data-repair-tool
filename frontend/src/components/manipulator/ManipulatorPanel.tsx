@@ -1,9 +1,11 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { renderRichText, renderMarkdownBlock } from '../common/RichText';
 import {
+  listManipulators,
   getApplicableManipulators,
   previewManipulator,
   executeManipulator,
+  ManipulatorInfo,
   ApplicableManipulator,
   ManipulatorPreview,
   ManipulatorRunResult,
@@ -14,65 +16,82 @@ interface ManipulatorPanelProps {
   onRefresh: () => void;
 }
 
-type Phase = 'list' | 'preview' | 'executing' | 'result';
+type Phase = 'list' | 'configure' | 'executing' | 'result';
 
 const ManipulatorPanel: React.FC<ManipulatorPanelProps> = ({ purchaseId, onRefresh }) => {
-  const [applicable, setApplicable] = useState<ApplicableManipulator[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [allManipulators, setAllManipulators] = useState<ManipulatorInfo[]>([]);
+  const [applicability, setApplicability] = useState<Record<string, ApplicableManipulator>>({});
+  const [checkingApplicability, setCheckingApplicability] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   // Selected manipulator state
-  const [selected, setSelected] = useState<ApplicableManipulator | null>(null);
+  const [selected, setSelected] = useState<ManipulatorInfo | null>(null);
   const [phase, setPhase] = useState<Phase>('list');
   const [preview, setPreview] = useState<ManipulatorPreview | null>(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
   const [result, setResult] = useState<ManipulatorRunResult | null>(null);
   const [target, setTarget] = useState<string>('LOCAL');
   const [params, setParams] = useState<Record<string, any>>({});
 
-  const loadApplicable = useCallback(async () => {
-    setLoading(true);
-    setError(null);
+  // Load all manipulators instantly (from registry, no Snowflake)
+  useEffect(() => {
+    listManipulators().then(setAllManipulators).catch(e => setError(e.message));
+  }, []);
+
+  // Check applicability in background (non-blocking)
+  const checkApplicability = useCallback(async () => {
+    setCheckingApplicability(true);
     try {
       const data = await getApplicableManipulators(purchaseId);
-      setApplicable(data);
-    } catch (e: any) {
-      setError(e.message);
-    } finally {
-      setLoading(false);
-    }
+      const map: Record<string, ApplicableManipulator> = {};
+      for (const m of data) map[m.manipulatorId] = m;
+      setApplicability(map);
+    } catch (_) { /* non-blocking */ }
+    setCheckingApplicability(false);
   }, [purchaseId]);
 
   useEffect(() => {
-    loadApplicable();
-  }, [loadApplicable]);
+    checkApplicability();
+  }, [checkApplicability]);
 
-  const handleSelect = async (m: ApplicableManipulator) => {
+  const handleSelect = (m: ManipulatorInfo) => {
     setSelected(m);
-    setParams(m.applicability.suggestedParams || {});
-    setPhase('preview');
+    // Pre-fill suggested params from applicability check if available
+    const app = applicability[m.id];
+    const suggested = app?.applicability?.suggestedParams || {};
+    const initial: Record<string, any> = {};
+    for (const p of m.requiredParams) {
+      initial[p.name] = suggested[p.name] ?? p.defaultValue ?? '';
+    }
+    setParams(initial);
+    setPhase('configure');
     setPreview(null);
     setResult(null);
+  };
 
+  const handlePreview = async () => {
+    if (!selected) return;
+    setPreviewLoading(true);
     try {
-      const p = await previewManipulator(purchaseId, m.manipulatorId, m.applicability.suggestedParams || {});
+      const p = await previewManipulator(purchaseId, selected.id, params);
       setPreview(p);
     } catch (e: any) {
       setError(e.message);
     }
+    setPreviewLoading(false);
   };
 
   const handleExecute = async () => {
     if (!selected) return;
     setPhase('executing');
     setResult(null);
-
     try {
-      const r = await executeManipulator(purchaseId, selected.manipulatorId, params, target);
+      const r = await executeManipulator(purchaseId, selected.id, params, target);
       setResult(r);
       setPhase('result');
     } catch (e: any) {
       setError(e.message);
-      setPhase('preview');
+      setPhase('configure');
     }
   };
 
@@ -83,7 +102,7 @@ const ManipulatorPanel: React.FC<ManipulatorPanelProps> = ({ purchaseId, onRefre
     setResult(null);
     setParams({});
     onRefresh();
-    loadApplicable();
+    checkApplicability();
   };
 
   const handleBack = () => {
@@ -93,59 +112,92 @@ const ManipulatorPanel: React.FC<ManipulatorPanelProps> = ({ purchaseId, onRefre
     setResult(null);
   };
 
+  // Group manipulators by category
+  const byCategory: Record<string, ManipulatorInfo[]> = {};
+  for (const m of allManipulators) {
+    const cat = m.category || 'OTHER';
+    if (!byCategory[cat]) byCategory[cat] = [];
+    byCategory[cat].push(m);
+  }
+  const categoryOrder = ['STRUCTURAL', 'FINANCIAL', 'REMEDIATION', 'CHARGEBACK'];
+
   // -- List phase --
   if (phase === 'list') {
     return (
       <div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
           <h3 style={{ margin: 0 }}>Loan Manipulators</h3>
-          <button className="btn btn-small" onClick={loadApplicable} disabled={loading}>
-            {loading ? 'Checking...' : 'Refresh'}
-          </button>
           <select value={target} onChange={e => setTarget(e.target.value)} style={{ fontSize: 12, padding: '2px 6px' }}>
             <option value="LOCAL">LOCAL</option>
             <option value="STAGING">STAGING</option>
             <option value="PROD">PROD</option>
           </select>
           <span style={{ fontSize: 11, color: '#757575' }}>Target: {target}</span>
+          {checkingApplicability && <span style={{ fontSize: 11, color: '#757575' }}>Checking applicability...</span>}
         </div>
 
         {error && <div className="card" style={{ background: '#ffebee', color: '#c62828', marginBottom: 12 }}>{error}</div>}
 
-        {applicable.length === 0 && !loading && (
-          <div className="card" style={{ color: '#757575' }}>No applicable manipulators for this purchase.</div>
-        )}
-
-        {applicable.length > 0 && (
-          <table className="table">
-            <thead>
-              <tr>
-                <th>Manipulator</th>
-                <th>Category</th>
-                <th>Reason</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              {applicable.map(m => (
-                <tr key={m.manipulatorId}>
-                  <td><strong>{m.name}</strong></td>
-                  <td><span className={`badge badge-category-${m.category.toLowerCase()}`}>{m.category}</span></td>
-                  <td style={{ fontSize: 12, color: '#546e7a' }}>{m.applicability.reason}</td>
-                  <td>
-                    <button className="btn btn-small" onClick={() => handleSelect(m)}>Select</button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
+        {categoryOrder.map(cat => {
+          const items = byCategory[cat];
+          if (!items || items.length === 0) return null;
+          return (
+            <div key={cat} style={{ marginBottom: 16 }}>
+              <div style={{ marginBottom: 6 }}>
+                <span className={`badge badge-category-${cat.toLowerCase()}`}>{cat}</span>
+              </div>
+              <table className="table">
+                <thead>
+                  <tr>
+                    <th>Manipulator</th>
+                    <th>Status</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {items.map(m => {
+                    const app = applicability[m.id];
+                    const isApplicable = app?.applicability?.canApply;
+                    return (
+                      <tr key={m.id}>
+                        <td>
+                          <strong>{m.name}</strong>
+                          <div style={{ fontSize: 11, color: '#546e7a' }}>{m.description}</div>
+                        </td>
+                        <td style={{ fontSize: 11, width: 200 }}>
+                          {app ? (
+                            <span style={{ color: isApplicable ? '#2e7d32' : '#757575' }}>
+                              {isApplicable ? 'Applicable' : 'Not applicable'}
+                              {app.applicability?.reason && (
+                                <div style={{ fontSize: 10, color: '#9e9e9e', marginTop: 2 }}>
+                                  {app.applicability.reason.substring(0, 80)}
+                                </div>
+                              )}
+                            </span>
+                          ) : (
+                            checkingApplicability ? <span style={{ color: '#9e9e9e' }}>...</span> : null
+                          )}
+                        </td>
+                        <td>
+                          <button className="btn btn-small" onClick={() => handleSelect(m)}>
+                            Configure
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          );
+        })}
       </div>
     );
   }
 
-  // -- Preview phase --
-  if (phase === 'preview' && selected) {
+  // -- Configure phase --
+  if (phase === 'configure' && selected) {
+    const app = applicability[selected.id];
     return (
       <div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
@@ -156,81 +208,89 @@ const ManipulatorPanel: React.FC<ManipulatorPanelProps> = ({ purchaseId, onRefre
         </div>
 
         <div className="card" style={{ marginBottom: 12 }}>
-          <div style={{ fontSize: 13, marginBottom: 8 }}><strong>Reason:</strong> {selected.applicability.reason}</div>
+          <div style={{ fontSize: 13, marginBottom: 8 }}>{renderRichText(selected.description)}</div>
 
-          {preview ? (
-            <>
-              <div style={{ fontSize: 13, marginBottom: 8 }}><strong>Preview:</strong> {renderRichText(preview.description)}</div>
-
-              {preview.warnings.length > 0 && (
-                <div style={{ background: '#fff3e0', padding: '6px 10px', borderRadius: 4, marginBottom: 8 }}>
-                  {preview.warnings.map((w, i) => (
-                    <div key={i} style={{ fontSize: 12, color: '#e65100' }}>{renderRichText(w)}</div>
-                  ))}
-                </div>
-              )}
-
-              {preview.steps.length > 0 && (
-                <table className="table" style={{ marginTop: 8 }}>
-                  <thead>
-                    <tr>
-                      <th>#</th>
-                      <th>Action</th>
-                      <th>Description</th>
-                      <th>Affected Payments</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {preview.steps.map(s => (
-                      <tr key={s.order}>
-                        <td>{s.order}</td>
-                        <td><span className="badge" style={{ background: '#e3f2fd', color: '#1565c0' }}>{s.action}</span></td>
-                        <td style={{ fontSize: 12 }}>{s.description}</td>
-                        <td className="mono" style={{ fontSize: 11 }}>{s.affectedPaymentIds.join(', ') || '-'}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              )}
-            </>
-          ) : (
-            <div style={{ color: '#757575' }}>Loading preview...</div>
+          {app && (
+            <div style={{ fontSize: 12, color: app.applicability?.canApply ? '#2e7d32' : '#e65100', marginBottom: 8 }}>
+              {app.applicability?.canApply ? 'Applicable: ' : 'Not applicable: '}
+              {app.applicability?.reason}
+            </div>
           )}
         </div>
 
-        {/* Parameters (if any suggested) */}
-        {Object.keys(params).length > 0 && (
+        {/* Parameters */}
+        {selected.requiredParams.length > 0 && (
           <div className="card" style={{ marginBottom: 12 }}>
-            <div style={{ fontSize: 13, marginBottom: 6 }}><strong>Parameters:</strong></div>
-            {Object.entries(params).map(([key, value]) => (
-              <div key={key} style={{ fontSize: 12, marginBottom: 4 }}>
-                <span style={{ color: '#757575' }}>{key}: </span>
+            <div style={{ fontSize: 13, marginBottom: 8 }}><strong>Parameters</strong></div>
+            {selected.requiredParams.map(p => (
+              <div key={p.name} style={{ marginBottom: 8 }}>
+                <label style={{ fontSize: 12, display: 'block', marginBottom: 2 }}>
+                  <span className="mono">{p.name}</span>
+                  <span style={{ color: '#9e9e9e' }}> ({p.type.toLowerCase()}{p.required ? ', required' : ''})</span>
+                </label>
+                <div style={{ fontSize: 11, color: '#757575', marginBottom: 2 }}>{p.description}</div>
                 <input
                   type="text"
-                  value={String(value)}
-                  onChange={e => setParams({ ...params, [key]: e.target.value })}
-                  style={{ fontSize: 12, padding: '2px 6px', width: 200 }}
+                  value={String(params[p.name] ?? '')}
+                  onChange={e => setParams({ ...params, [p.name]: e.target.value })}
+                  style={{ fontSize: 12, padding: '4px 8px', width: 300 }}
+                  placeholder={p.defaultValue != null ? `Default: ${p.defaultValue}` : ''}
                 />
               </div>
             ))}
           </div>
         )}
 
-        <div style={{ display: 'flex', gap: 8 }}>
+        {/* Preview */}
+        <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+          <button className="btn" onClick={handlePreview} disabled={previewLoading}>
+            {previewLoading ? 'Loading preview...' : 'Preview'}
+          </button>
           <button
             className="btn"
             onClick={handleExecute}
-            disabled={!preview}
             style={{ background: target === 'PROD' ? '#c62828' : '#2e7d32', color: '#fff' }}
           >
             Execute on {target}
           </button>
           {target === 'PROD' && (
             <span style={{ fontSize: 11, color: '#c62828', alignSelf: 'center' }}>
-              WARNING: This will run against production
+              This will run against production
             </span>
           )}
         </div>
+
+        {preview && (
+          <div className="card" style={{ marginBottom: 12 }}>
+            <div style={{ fontSize: 13, marginBottom: 8 }}><strong>Preview:</strong> {renderRichText(preview.description)}</div>
+
+            {preview.warnings.length > 0 && (
+              <div style={{ background: '#fff3e0', padding: '6px 10px', borderRadius: 4, marginBottom: 8 }}>
+                {preview.warnings.map((w, i) => (
+                  <div key={i} style={{ fontSize: 12, color: '#e65100' }}>{renderRichText(w)}</div>
+                ))}
+              </div>
+            )}
+
+            {preview.steps.length > 0 && (
+              <table className="table" style={{ marginTop: 8 }}>
+                <thead>
+                  <tr><th>#</th><th>Action</th><th>Description</th><th>Affected</th></tr>
+                </thead>
+                <tbody>
+                  {preview.steps.map(s => (
+                    <tr key={s.order}>
+                      <td>{s.order}</td>
+                      <td><span className="badge" style={{ background: '#e3f2fd', color: '#1565c0' }}>{s.action}</span></td>
+                      <td style={{ fontSize: 12 }}>{s.description}</td>
+                      <td className="mono" style={{ fontSize: 11 }}>{s.affectedPaymentIds.join(', ') || '-'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+        )}
       </div>
     );
   }
@@ -249,10 +309,9 @@ const ManipulatorPanel: React.FC<ManipulatorPanelProps> = ({ purchaseId, onRefre
     return (
       <div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
-          <h3 style={{ margin: 0 }}>{selected?.name} -- Result</h3>
+          <h3 style={{ margin: 0 }}>{selected?.name} Result</h3>
         </div>
 
-        {/* Execution result */}
         <div className="card" style={{ marginBottom: 12, background: result.success ? '#e8f5e9' : '#ffebee' }}>
           <div style={{ fontSize: 14, fontWeight: 'bold', marginBottom: 6 }}>
             {result.success ? 'Execution succeeded' : 'Execution failed'}
@@ -286,14 +345,12 @@ const ManipulatorPanel: React.FC<ManipulatorPanelProps> = ({ purchaseId, onRefre
           )}
         </div>
 
-        {/* Verification result */}
         {result.verification && (
           <div className="card" style={{ marginBottom: 12, background: result.verification.passed ? '#e8f5e9' : '#fff3e0' }}>
             <div style={{ fontSize: 14, fontWeight: 'bold', marginBottom: 6 }}>
               Verification: {result.verification.passed ? 'PASSED' : 'NEEDS REVIEW'}
             </div>
             <div style={{ fontSize: 12 }}>{result.verification.reason}</div>
-
             {result.verification.resolvedFindings.length > 0 && (
               <div style={{ marginTop: 8 }}>
                 <div style={{ fontSize: 12, fontWeight: 'bold' }}>Resolved:</div>
