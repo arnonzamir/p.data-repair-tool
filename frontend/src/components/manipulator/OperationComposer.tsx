@@ -307,7 +307,7 @@ const OperationComposer: React.FC<OperationComposerProps> = ({ purchaseId, onRef
                 <div style={{ fontSize: 11, color: '#546e7a', marginTop: 2 }}>
                   {step.changes.map((c: any, j: number) => (
                     <span key={j} style={{ marginRight: 12 }}>
-                      {c.field}: {JSON.stringify(c.before)} -> {JSON.stringify(c.after)}
+                      {c.field}: {JSON.stringify(c.before)} {'->'} {JSON.stringify(c.after)}
                     </span>
                   ))}
                 </div>
