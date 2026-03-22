@@ -28,7 +28,7 @@ import javax.sql.DataSource
  * When proxy-url is NOT set, the normal SnowflakeConfig creates the real JDBC DataSource.
  */
 @Configuration
-@ConditionalOnProperty("snowflake.proxy-url")
+@org.springframework.boot.autoconfigure.condition.ConditionalOnExpression("'\${snowflake.proxy-url:}' != ''")
 class SnowflakeProxyConfig {
 
     private val log = LoggerFactory.getLogger(SnowflakeProxyConfig::class.java)
