@@ -101,38 +101,56 @@ interface UnifiedChargeEventsTabProps {
 
 const UnifiedChargeEventsTab: React.FC<UnifiedChargeEventsTabProps> = ({ events, notifications, tickets, checkoutActions = [], onNavigateTab, purchaseId }) => {
   const [expandedIndex, setExpandedIndex] = useState<number | null>(null);
+  const [showOnlyUnmatched, setShowOnlyUnmatched] = useState(false);
 
   const toggleExpand = (index: number) => {
     setExpandedIndex(expandedIndex === index ? null : index);
   };
 
+  // Build a set of payment IDs that have matching charge events
+  const matchedPaymentIds = new Set<number>();
+  for (const e of events) {
+    if (e.paymentId) matchedPaymentIds.add(e.paymentId);
+  }
+
+  // Build merged list: charge events + checkout actions, sorted by timestamp
+  type MergedRow = { type: 'charge'; event: UnifiedChargeEvent; index: number } | { type: 'checkout'; action: Record<string, any> };
+  const merged: MergedRow[] = [];
+
+  for (let i = 0; i < events.length; i++) {
+    merged.push({ type: 'charge', event: events[i], index: i });
+  }
+  for (const ca of checkoutActions) {
+    merged.push({ type: 'checkout', action: ca });
+  }
+  merged.sort((a, b) => {
+    const tsA = a.type === 'charge' ? (a.event.timestamp || '') : (a.action.action_date || '');
+    const tsB = b.type === 'charge' ? (b.event.timestamp || '') : (b.action.action_date || '');
+    return tsA.localeCompare(tsB);
+  });
+
+  // Count unmatched checkout actions
+  const unmatchedCount = checkoutActions.filter(ca => !matchedPaymentIds.has(Number(ca.payment_id))).length;
+
   return (
     <div className="charge-events-table">
       <div className="table-controls">
-        <span className="table-count">{events.length} charge events{checkoutActions.length > 0 ? ` + ${checkoutActions.length} Checkout.com actions` : ''}</span>
+        <span className="table-count">
+          {events.length} charge events
+          {checkoutActions.length > 0 && ` + ${checkoutActions.length} Checkout.com actions`}
+          {unmatchedCount > 0 && (
+            <span style={{ color: '#c62828', marginLeft: 8 }}>
+              ({unmatchedCount} unmatched)
+            </span>
+          )}
+        </span>
+        {checkoutActions.length > 0 && (
+          <label className="filter-toggle" style={{ marginLeft: 12 }}>
+            <input type="checkbox" checked={showOnlyUnmatched} onChange={e => setShowOnlyUnmatched(e.target.checked)} />
+            Show only unmatched
+          </label>
+        )}
       </div>
-
-      {checkoutActions.length > 0 && (
-        <div className="card" style={{ marginBottom: 12 }}>
-          <div style={{ fontSize: 12, marginBottom: 6 }}><strong>Checkout.com Processor Actions</strong></div>
-          <table className="table table-compact">
-            <thead>
-              <tr><th>Date</th><th>Action</th><th>Amount</th><th>Payment ID</th><th>Source</th></tr>
-            </thead>
-            <tbody>
-              {checkoutActions.map((ca, i) => (
-                <tr key={i}>
-                  <td className="mono" style={{ fontSize: 11 }}>{ca.action_date || '-'}</td>
-                  <td style={{ color: ca.action_type === 'Refund' ? '#2e7d32' : '#1565c0', fontWeight: 600, fontSize: 11 }}>{ca.action_type}</td>
-                  <td style={{ fontSize: 11 }}>{'$' + Number(ca.amount || 0).toFixed(2)}</td>
-                  <td className="mono" style={{ fontSize: 11 }}>{ca.payment_id || '-'}</td>
-                  <td style={{ fontSize: 11, color: '#757575' }}>{ca.source || '-'}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
 
       <table className="table" role="table">
         <thead>
@@ -151,7 +169,32 @@ const UnifiedChargeEventsTab: React.FC<UnifiedChargeEventsTabProps> = ({ events,
           </tr>
         </thead>
         <tbody>
-          {events.map((event, index) => {
+          {merged.filter(row => {
+            if (!showOnlyUnmatched) return true;
+            if (row.type === 'checkout') return !matchedPaymentIds.has(Number(row.action.payment_id));
+            return false;
+          }).map((row, mergedIdx) => {
+            // Checkout.com inline row
+            if (row.type === 'checkout') {
+              const ca = row.action;
+              const isUnmatched = !matchedPaymentIds.has(Number(ca.payment_id));
+              return (
+                <tr key={`co-${mergedIdx}`} style={{ background: isUnmatched ? '#ffebee' : '#e3f2fd', fontSize: 11 }}>
+                  <td className="mono">{ca.action_date || '-'}</td>
+                  <td className="mono">{ca.payment_id || '-'}</td>
+                  <td>{'$' + Number(ca.amount || 0).toFixed(2)}</td>
+                  <td colSpan={2} style={{ fontWeight: 600, color: ca.action_type === 'Refund' ? '#2e7d32' : '#1565c0' }}>
+                    Checkout.com {ca.action_type}
+                    {isUnmatched && <span style={{ color: '#c62828', marginLeft: 6 }}>(UNMATCHED)</span>}
+                  </td>
+                  <td>{ca.source || '-'}</td>
+                  <td colSpan={3}></td>
+                </tr>
+              );
+            }
+
+            const event = row.event;
+            const index = row.index;
             const latest = getLatestStatus(event.chargeServiceStatuses);
             const isExpanded = expandedIndex === index;
             const rowClass = [
