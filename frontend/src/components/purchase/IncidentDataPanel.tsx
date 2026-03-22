@@ -35,6 +35,7 @@ const IncidentDataPanel: React.FC<IncidentDataPanelProps> = ({ purchaseId }) => 
       {/* Loan Performance */}
       {loanPerf && (
         <div className="card" style={{ marginBottom: 8 }}>
+          <div style={{ fontSize: 12, marginBottom: 6 }}><strong>Loan Performance (Feb 27 Incident)</strong></div>
           <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', fontSize: 12 }}>
             <div>
               <span style={{ color: '#757575' }}>Incident Group: </span>

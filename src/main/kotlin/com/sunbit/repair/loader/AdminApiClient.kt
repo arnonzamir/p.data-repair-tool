@@ -252,6 +252,56 @@ class AdminApiClient(
     }
 
     // -----------------------------------------------------------------------
+    // Remediation API (atomic payment manipulation)
+    // -----------------------------------------------------------------------
+
+    fun remediationSnapshot(purchaseId: Long, target: String = "LOCAL"): Map<String, Any> {
+        log.info("[AdminApiClient][remediationSnapshot] Snapshot for purchase {} on {}", purchaseId, target)
+        return clientFor(target).post()
+            .uri("/api/v1/admin/remediation/payments/snapshot")
+            .bodyValue(mapOf("purchaseId" to purchaseId))
+            .retrieve()
+            .bodyToMono(MAP_TYPE)
+            .block(timeout)
+            ?: emptyMap()
+    }
+
+    fun remediationSimulate(purchaseId: Long, operations: List<Map<String, Any>>, target: String = "LOCAL"): Map<String, Any> {
+        log.info("[AdminApiClient][remediationSimulate] Simulate {} ops for purchase {} on {}", operations.size, purchaseId, target)
+        return clientFor(target).post()
+            .uri("/api/v1/admin/remediation/payments/simulate")
+            .bodyValue(mapOf("purchaseId" to purchaseId, "operations" to operations))
+            .retrieve()
+            .bodyToMono(MAP_TYPE)
+            .block(timeout)
+            ?: emptyMap()
+    }
+
+    fun remediationExecute(
+        purchaseId: Long,
+        operations: List<Map<String, Any>>,
+        reason: String,
+        dryRun: Boolean = true,
+        skipTicket: Boolean = false,
+        target: String = "LOCAL",
+    ): Map<String, Any> {
+        log.info("[AdminApiClient][remediationExecute] Execute {} ops for purchase {} on {} (dryRun={})", operations.size, purchaseId, target, dryRun)
+        return clientFor(target).post()
+            .uri("/api/v1/admin/remediation/payments/execute")
+            .bodyValue(mapOf(
+                "purchaseId" to purchaseId,
+                "operations" to operations,
+                "reason" to reason,
+                "dryRun" to dryRun,
+                "skipTicket" to skipTicket,
+            ))
+            .retrieve()
+            .bodyToMono(MAP_TYPE)
+            .block(timeout)
+            ?: emptyMap()
+    }
+
+    // -----------------------------------------------------------------------
     // CPP status recalculation
     // -----------------------------------------------------------------------
 

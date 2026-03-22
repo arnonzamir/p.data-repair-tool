@@ -14,7 +14,7 @@ import UnifiedChargeEventsTab from './UnifiedChargeEventsTab';
 import ReplicateInline from '../replicate/ReplicateInline';
 import NotesAndLists from './NotesAndLists';
 import DisbursalsTab from './DisbursalsTab';
-import ManipulatorPanel from '../manipulator/ManipulatorPanel';
+import OperationComposer from '../manipulator/OperationComposer';
 import IncidentDataPanel from './IncidentDataPanel';
 
 type TabKey = 'payments' | 'findings' | 'money' | 'charges' | 'disbursals' | 'notifications' | 'actions' | 'tickets' | 'timeline' | 'manipulators';
@@ -342,9 +342,6 @@ const PurchaseDetail: React.FC<PurchaseDetailProps> = ({ snapshot, analysis, rep
         </div>
       </div>
 
-      {/* Incident data (shows only if data exists for this purchase) */}
-      <IncidentDataPanel purchaseId={snapshot.purchaseId} />
-
       {/* Tabs */}
       <div className="tab-bar">
         {tabs.map((t) => (
@@ -364,13 +361,16 @@ const PurchaseDetail: React.FC<PurchaseDetailProps> = ({ snapshot, analysis, rep
           <PurchaseTimeline snapshot={snapshot} checkoutActions={checkoutActions} />
         )}
         {activeTab === 'payments' && (
-          <PaymentsTab
-            snapshot={snapshot}
-            highlightIds={highlightIds}
-            findings={analysis.findings}
-            checkoutActions={checkoutActions}
-            onNavigateTab={(tab) => setActiveTab(tab as TabKey)}
-          />
+          <>
+            <PaymentsTab
+              snapshot={snapshot}
+              highlightIds={highlightIds}
+              findings={analysis.findings}
+              checkoutActions={checkoutActions}
+              onNavigateTab={(tab) => setActiveTab(tab as TabKey)}
+            />
+            <IncidentDataPanel purchaseId={snapshot.purchaseId} />
+          </>
         )}
         {activeTab === 'findings' && (
           <FindingsPanel findings={analysis.findings} ruleResults={analysis.ruleResults} onSelectRepair={handleSelectRepair} onRescan={onRefresh} />
@@ -412,7 +412,7 @@ const PurchaseDetail: React.FC<PurchaseDetailProps> = ({ snapshot, analysis, rep
           <TicketsTab tickets={snapshot.supportTickets} />
         )}
         {activeTab === 'manipulators' && (
-          <ManipulatorPanel purchaseId={snapshot.purchaseId} onRefresh={onRefresh} />
+          <OperationComposer purchaseId={snapshot.purchaseId} onRefresh={onRefresh} />
         )}
       </div>
 

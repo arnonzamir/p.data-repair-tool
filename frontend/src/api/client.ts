@@ -270,6 +270,28 @@ export const getLoanPerformance = (purchaseId: number) =>
 export const getCheckoutActions = (purchaseId: number) =>
   apiFetch<Record<string, any>[]>(`/api/v1/incident-data/checkout-actions/${purchaseId}`);
 
+// Remediation (atomic payment manipulation)
+export const remediationSnapshot = (purchaseId: number, target: string = 'LOCAL') =>
+  apiFetch<any>('/api/v1/remediation/snapshot', {
+    method: 'POST',
+    body: JSON.stringify({ purchaseId }),
+    headers: { 'X-Target': target },
+  });
+
+export const remediationSimulate = (purchaseId: number, operations: any[], target: string = 'LOCAL') =>
+  apiFetch<any>('/api/v1/remediation/simulate', {
+    method: 'POST',
+    body: JSON.stringify({ purchaseId, operations }),
+    headers: { 'X-Target': target },
+  });
+
+export const remediationExecute = (purchaseId: number, operations: any[], reason: string, dryRun: boolean = true, skipTicket: boolean = false, target: string = 'LOCAL') =>
+  apiFetch<any>('/api/v1/remediation/execute', {
+    method: 'POST',
+    body: JSON.stringify({ purchaseId, operations, reason, dryRun, skipTicket }),
+    headers: { 'X-Target': target },
+  });
+
 // Sync (pull latest from git)
 export const pullSync = () =>
   apiFetch<any>('/api/v1/sync/pull', { method: 'POST' });

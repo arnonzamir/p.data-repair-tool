@@ -43,7 +43,7 @@ const ListBrowser: React.FC<ListBrowserProps> = ({ activePurchaseId, onSelectPur
   const [newListName, setNewListName] = useState('');
   const [loading, setLoading] = useState(false);
   const [updatingStatus, setUpdatingStatus] = useState<number | null>(null);
-  const [searchPid, setSearchPid] = useState('');
+  const [searchText, setSearchText] = useState('');
   const [filterStatus, setFilterStatus] = useState<string>('');
 
   const refreshLists = useCallback(async () => {
@@ -146,115 +146,126 @@ const ListBrowser: React.FC<ListBrowserProps> = ({ activePurchaseId, onSelectPur
   return (
     <div className="list-browser">
       <div className="list-browser-header">
-        <h3>Purchase Lists</h3>
-        <div className="list-create-form">
-          <input
-            type="text"
-            value={newListName}
-            onChange={(e) => setNewListName(e.target.value)}
-            placeholder="New list name (e.g. Feb28-incident)"
-            className="input-small"
-            onKeyDown={(e) => e.key === 'Enter' && handleCreateList()}
-          />
-          <button className="btn btn-small" onClick={handleCreateList} disabled={loading || !newListName.trim()}>
-            Create
-          </button>
-        </div>
+        <h3 style={{ margin: 0 }}>Purchase Lists</h3>
+      </div>
+
+      {/* Global search */}
+      <div style={{ padding: '4px 0 6px 0' }}>
+        <input
+          type="text"
+          value={searchText}
+          onChange={e => setSearchText(e.target.value)}
+          placeholder="Search lists or purchase IDs..."
+          style={{ fontSize: 12, padding: '4px 8px', width: '100%', border: '1px solid #ccc', borderRadius: 3 }}
+        />
       </div>
 
       <div className="list-browser-body">
         {/* Left column: list names */}
-        <div className="list-names-column">
+        <div className="list-names-column" style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
           {recentList && (
             <div
-              className={`list-name-item list-name-pinned ${isRecentSelected ? 'active' : ''}`}
+              className={`list-name-line ${isRecentSelected ? 'active' : ''}`}
               onClick={() => { setSelectedListId(RECENT_LIST_ID); setSelectedPurchaseId(null); }}
             >
-              <div className="list-name-title">Recently Viewed</div>
-              <div className="list-name-meta">{recentList.purchaseIds.length} purchases</div>
+              <span className="list-line-name">Recently Viewed</span>
+              <span className="list-line-count">{recentList.purchaseIds.length}</span>
             </div>
           )}
 
           {lists.length === 0 && !recentList && <p className="text-muted">No lists yet</p>}
-          {lists.map((list) => (
+          {lists.filter(list => {
+            if (!searchText) return true;
+            const q = searchText.toLowerCase();
+            if (list.name.toLowerCase().includes(q)) return true;
+            if (list.purchaseIds.some(pid => String(pid).includes(q))) return true;
+            return false;
+          }).map((list) => (
             <div
               key={list.id}
-              className={`list-name-item ${selectedListId === list.id ? 'active' : ''}`}
+              className={`list-name-line ${selectedListId === list.id ? 'active' : ''}`}
               onClick={() => { setSelectedListId(list.id); setSelectedPurchaseId(null); }}
             >
-              <div className="list-name-title">{list.name}</div>
-              <div className="list-name-meta">
-                {list.purchaseIds.length} purchases
-              </div>
-              <div className="list-name-actions">
+              <span className="list-line-name">{list.name}</span>
+              <span className="list-line-count">{list.purchaseIds.length}</span>
+              <div className="list-line-actions" onClick={e => e.stopPropagation()}>
                 {activePurchaseId != null && (
                   <button
-                    className="btn btn-tiny"
-                    onClick={(e) => { e.stopPropagation(); handleAddActivePurchase(list.id); }}
-                    title={`Add purchase ${activePurchaseId} to this list`}
-                  >
-                    + Add current
-                  </button>
+                    className="list-line-btn"
+                    onClick={() => handleAddActivePurchase(list.id)}
+                    title={`Add purchase ${activePurchaseId}`}
+                  >+</button>
                 )}
                 <button
-                  className="btn btn-tiny btn-danger"
-                  onClick={(e) => { e.stopPropagation(); handleDeleteList(list.id); }}
-                >
-                  Delete
-                </button>
+                  className="list-line-btn list-line-btn-danger"
+                  onClick={() => handleDeleteList(list.id)}
+                  title="Delete list"
+                >x</button>
               </div>
             </div>
           ))}
+          <div style={{ display: 'flex', gap: 2, marginTop: 4 }}>
+            <input
+              type="text"
+              value={newListName}
+              onChange={(e) => setNewListName(e.target.value)}
+              placeholder="New list..."
+              style={{ fontSize: 10, padding: '2px 4px', flex: 1, border: '1px solid #ccc', borderRadius: 2 }}
+              onKeyDown={(e) => e.key === 'Enter' && handleCreateList()}
+            />
+            <button
+              className="list-line-btn"
+              onClick={handleCreateList}
+              disabled={loading || !newListName.trim()}
+              title="Create new list"
+              style={{ width: 18, height: 18 }}
+            >+</button>
+          </div>
         </div>
 
         {/* Middle column: purchases in selected list */}
         <div className="list-purchases-column">
-          {selectedList && (
-            <>
-              <div className="list-purchases-title">{selectedList.name}</div>
-              <div style={{ display: 'flex', gap: 4, marginBottom: 6, flexWrap: 'wrap' }}>
-                <input
-                  type="text"
-                  value={searchPid}
-                  onChange={e => setSearchPid(e.target.value)}
-                  placeholder="Search ID..."
-                  style={{ fontSize: 11, padding: '2px 6px', width: 90 }}
-                />
-                <select
-                  value={filterStatus}
-                  onChange={e => setFilterStatus(e.target.value)}
-                  style={{ fontSize: 11, padding: '2px 4px' }}
-                >
-                  <option value="">All statuses</option>
-                  <option value="not-seen">not-seen</option>
-                  <option value="at-work">at-work</option>
-                  <option value="done">done</option>
-                  <option value="need-fixing">need-fixing</option>
-                </select>
-                {(searchPid || filterStatus) && (
-                  <>
-                    <button className="btn btn-tiny" onClick={() => { setSearchPid(''); setFilterStatus(''); }}>Clear</button>
-                    <span style={{ fontSize: 10, color: '#757575', alignSelf: 'center' }}>
-                      {selectedList.purchaseIds.filter(pid => {
-                        if (searchPid && !String(pid).includes(searchPid)) return false;
-                        if (filterStatus) {
-                          const status = statuses[pid]?.status || 'not-seen';
-                          if (status !== filterStatus) return false;
-                        }
-                        return true;
-                      }).length} / {selectedList.purchaseIds.length}
-                    </span>
-                  </>
-                )}
-              </div>
-            </>
-          )}
+          {selectedList && (() => {
+            const filteredPids = selectedList.purchaseIds.filter(pid => {
+              if (searchText && !String(pid).includes(searchText)) return false;
+              if (filterStatus) {
+                const status = statuses[pid]?.status || 'not-seen';
+                if (status !== filterStatus) return false;
+              }
+              return true;
+            });
+            return (
+              <>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
+                  <span className="list-purchases-title" style={{ flex: 1, marginBottom: 0 }}>{selectedList.name}</span>
+                  <select
+                    value={filterStatus}
+                    onChange={e => setFilterStatus(e.target.value)}
+                    style={{ fontSize: 10, padding: '1px 3px' }}
+                  >
+                    <option value="">All</option>
+                    <option value="not-seen">not-seen</option>
+                    <option value="at-work">at-work</option>
+                    <option value="done">done</option>
+                    <option value="need-fixing">need-fixing</option>
+                  </select>
+                </div>
+                <div style={{ fontSize: 10, color: '#757575', marginBottom: 4 }}>
+                  {filteredPids.length !== selectedList.purchaseIds.length
+                    ? `${filteredPids.length} / ${selectedList.purchaseIds.length}`
+                    : `${selectedList.purchaseIds.length} purchases`
+                  }
+                </div>
+              </>
+            );
+          })()}
           {!selectedList && <p className="text-muted">Select a list</p>}
           {selectedList && selectedList.purchaseIds.length === 0 && (
             <p className="text-muted">Empty list. Use "+ Add current" while viewing a purchase.</p>
           )}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2 }}>
           {selectedList && selectedList.purchaseIds.filter((pid) => {
-            if (searchPid && !String(pid).includes(searchPid)) return false;
+            if (searchText && !String(pid).includes(searchText)) return false;
             if (filterStatus) {
               const rs = statuses[pid];
               const status = rs?.status || 'not-seen';
@@ -307,6 +318,7 @@ const ListBrowser: React.FC<ListBrowserProps> = ({ activePurchaseId, onSelectPur
               </div>
             );
           })}
+          </div>
         </div>
 
         {/* Right column: purchase summary */}
