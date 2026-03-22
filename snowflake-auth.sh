@@ -18,10 +18,18 @@ if [ -z "$USER" ]; then
   exit 1
 fi
 
+# Set up virtual environment
+VENV_DIR="$HOME/.sunbit/repair-venv"
+if [ ! -d "$VENV_DIR" ]; then
+  echo "Creating virtual environment (one-time)..."
+  python3 -m venv "$VENV_DIR"
+fi
+source "$VENV_DIR/bin/activate"
+
 # Check for Python snowflake connector
 if ! python3 -c "import snowflake.connector" 2>/dev/null; then
   echo "Installing snowflake-connector-python (one-time)..."
-  pip3 install --quiet snowflake-connector-python
+  pip install --quiet snowflake-connector-python
 fi
 
 echo "Authenticating $USER to Snowflake..."

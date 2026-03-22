@@ -40,9 +40,15 @@ if [ ! -f "$HOME/.sunbit/snowflake_token" ]; then
   echo "(This is a one-time step. Tokens last ~4 hours.)"
   echo ""
 
+  VENV_DIR="$HOME/.sunbit/repair-venv"
+  if [ ! -d "$VENV_DIR" ]; then
+    python3 -m venv "$VENV_DIR"
+  fi
+  source "$VENV_DIR/bin/activate"
+
   if ! python3 -c "import snowflake.connector" 2>/dev/null; then
     echo "Installing snowflake-connector-python..."
-    pip3 install --quiet snowflake-connector-python 2>/dev/null
+    pip install --quiet snowflake-connector-python 2>/dev/null
   fi
 
   if python3 -c "import snowflake.connector" 2>/dev/null; then
