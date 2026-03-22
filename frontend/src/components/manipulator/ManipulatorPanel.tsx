@@ -273,40 +273,97 @@ const ManipulatorPanel: React.FC<ManipulatorPanelProps> = ({ purchaseId, onRefre
 
         {/* Parameters */}
         <div className="card" style={{ marginBottom: 12 }}>
-          <div style={{ fontSize: 13, marginBottom: 8 }}><strong>Parameters</strong></div>
-          {selected.requiredParams.length === 0 && (
-            <div style={{ fontSize: 12, color: '#757575' }}>No parameters required.</div>
-          )}
-          {selected.requiredParams.map(p => {
-            const suggested = app?.applicability?.suggestedParams?.[p.name];
-            return (
-              <div key={p.name} style={{ marginBottom: 10 }}>
-                <label style={{ fontSize: 12, display: 'block', marginBottom: 2 }}>
-                  <span className="mono" style={{ fontWeight: 600 }}>{p.name}</span>
-                  <span style={{ color: '#9e9e9e' }}> ({p.type.toLowerCase()}{p.required ? ', required' : ''})</span>
-                </label>
-                <div style={{ fontSize: 11, color: '#546e7a', marginBottom: 3 }}>{p.description}</div>
-                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                  <input
-                    type="text"
-                    value={String(params[p.name] ?? '')}
-                    onChange={e => setParams({ ...params, [p.name]: e.target.value })}
-                    style={{ fontSize: 12, padding: '4px 8px', width: 300, border: '1px solid #ccc', borderRadius: 3 }}
-                    placeholder={p.defaultValue != null ? `Default: ${p.defaultValue}` : ''}
-                  />
-                  {suggested != null && String(suggested) !== String(params[p.name]) && (
-                    <button
-                      className="btn btn-tiny"
-                      onClick={() => setParams({ ...params, [p.name]: suggested })}
-                      title={`Use suggested value: ${suggested}`}
-                    >
-                      Use suggested: {String(suggested).substring(0, 20)}
-                    </button>
-                  )}
-                </div>
-              </div>
+          {(() => {
+            const hasRequired = selected.requiredParams.some(p => p.required);
+            const allOptional = selected.requiredParams.every(p => !p.required);
+            const allHaveSuggested = selected.requiredParams.every(p =>
+              params[p.name] != null && String(params[p.name]) !== ''
             );
-          })}
+
+            if (selected.requiredParams.length === 0) {
+              return (
+                <div style={{ fontSize: 12, color: '#546e7a' }}>
+                  No configuration needed. The fixer will auto-detect what to do based on the purchase data.
+                </div>
+              );
+            }
+
+            if (allOptional && allHaveSuggested) {
+              return (
+                <>
+                  <div style={{ fontSize: 13, marginBottom: 8 }}><strong>Auto-detected values (the fixer will use these):</strong></div>
+                  {selected.requiredParams.map(p => (
+                    <div key={p.name} style={{ marginBottom: 6, display: 'flex', gap: 8, alignItems: 'baseline' }}>
+                      <span className="mono" style={{ fontSize: 12, color: '#757575', minWidth: 120 }}>{p.name}:</span>
+                      <span style={{ fontSize: 13, fontWeight: 600 }}>{String(params[p.name])}</span>
+                    </div>
+                  ))}
+                  <div style={{ marginTop: 8, fontSize: 11, color: '#9e9e9e' }}>
+                    These values were detected automatically. You can override them below if needed.
+                  </div>
+                  <details style={{ marginTop: 8 }}>
+                    <summary style={{ fontSize: 12, color: '#1565c0', cursor: 'pointer' }}>Override values</summary>
+                    <div style={{ marginTop: 8 }}>
+                      {selected.requiredParams.map(p => (
+                        <div key={p.name} style={{ marginBottom: 8 }}>
+                          <label style={{ fontSize: 12, display: 'block', marginBottom: 2 }}>
+                            <span className="mono">{p.name}</span>
+                          </label>
+                          <input
+                            type="text"
+                            value={String(params[p.name] ?? '')}
+                            onChange={e => setParams({ ...params, [p.name]: e.target.value })}
+                            style={{ fontSize: 12, padding: '4px 8px', width: 300, border: '1px solid #ccc', borderRadius: 3 }}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  </details>
+                </>
+              );
+            }
+
+            return (
+              <>
+                <div style={{ fontSize: 13, marginBottom: 8 }}><strong>Parameters</strong></div>
+                {selected.requiredParams.map(p => {
+                  const suggested = app?.applicability?.suggestedParams?.[p.name];
+                  const hasValue = params[p.name] != null && String(params[p.name]) !== '';
+                  return (
+                    <div key={p.name} style={{ marginBottom: 10 }}>
+                      <label style={{ fontSize: 12, display: 'block', marginBottom: 2 }}>
+                        <span className="mono" style={{ fontWeight: 600 }}>{p.name}</span>
+                        <span style={{ color: '#9e9e9e' }}> ({p.type.toLowerCase()}{p.required ? ', required' : ''})</span>
+                      </label>
+                      <div style={{ fontSize: 11, color: '#546e7a', marginBottom: 3 }}>{p.description}</div>
+                      {!p.required && hasValue ? (
+                        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                          <span style={{ fontSize: 13, fontWeight: 600 }}>{String(params[p.name])}</span>
+                          <span style={{ fontSize: 10, color: '#2e7d32' }}>(auto-detected)</span>
+                          <button className="btn btn-tiny" onClick={() => setParams({ ...params, [p.name]: '' })}>Clear</button>
+                        </div>
+                      ) : (
+                        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                          <input
+                            type="text"
+                            value={String(params[p.name] ?? '')}
+                            onChange={e => setParams({ ...params, [p.name]: e.target.value })}
+                            style={{ fontSize: 12, padding: '4px 8px', width: 300, border: '1px solid #ccc', borderRadius: 3 }}
+                            placeholder={p.defaultValue != null ? `Default: ${p.defaultValue}` : ''}
+                          />
+                          {suggested != null && (
+                            <button className="btn btn-tiny" onClick={() => setParams({ ...params, [p.name]: suggested })}>
+                              Use: {String(suggested).substring(0, 20)}
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </>
+            );
+          })()}
         </div>
 
         {/* Actions */}
